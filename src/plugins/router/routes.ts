@@ -1,5 +1,5 @@
 export const routes = [
-  { path: '/', redirect: '/login' },
+  { path: '/', redirect: '/customer/shopping' },
   {
     path: '/admin',
 
