@@ -1,43 +1,48 @@
 <!-- eslint-disable indent -->
 <script setup lang="ts">
-import AuthProvider from '@/views/pages/authentication/AuthProvider.vue'
-import logo from '@images/logo.svg?raw'
-import authV1BottomShape from '@images/svg/auth-v1-bottom-shape.svg?url'
-import authV1TopShape from '@images/svg/auth-v1-top-shape.svg?url'
+import AuthProvider from "@/views/pages/authentication/AuthProvider.vue";
+import logo from "@images/logo.svg?raw";
+import authV1BottomShape from "@images/svg/auth-v1-bottom-shape.svg?url";
+import authV1TopShape from "@images/svg/auth-v1-top-shape.svg?url";
 
-import { Roles } from '@/models/roles'
-import { login } from '@/api/authProvider'
+import { Roles } from "@/models/roles";
+import { login } from "@/api/authProvider";
 
-const router = useRouter()
+const router = useRouter();
 
 const form = ref({
-  username: '',
-  password: '',
+  username: "",
+  password: "",
   remember: false,
-})
+});
 
 const loginHandler = async () => {
-  const username = form.value.username
-  const password = form.value.password
+  const username = form.value.username;
+  const password = form.value.password;
 
-  const role: Roles | null = await login(username, password)
+  const role: Roles | null = await login(username, password);
 
-  if (role === null)
-    return
+  if (role === null) return;
   switch (role) {
     case Roles.ADMIN:
-      // Redirect to admin dashboard
-
-      router.push('/admin/dashboard')
-      break
+      router.push("/admin");
+      break;
     case Roles.CUSTOMER:
-    // Redirect to user dashboard
-      router.push('/customer/dashboard')
-      break
+      router.push("/customer");
+      break;
+    case Roles.CARRIER:
+      router.push("/carrier");
+      break;
+    case Roles.DROPSHIPPER:
+      router.push("/dropshipper");
+      break;
+    case Roles.SUPPLIER:
+      router.push("/supplier");
+      break;
   }
-}
+};
 
-const isPasswordVisible = ref(false)
+const isPasswordVisible = ref(false);
 </script>
 
 <template>
