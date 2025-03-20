@@ -1,0 +1,3 @@
+<template>
+  Thống kê
+</template>

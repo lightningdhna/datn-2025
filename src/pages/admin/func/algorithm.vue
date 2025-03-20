@@ -1,0 +1,3 @@
+<template>
+  thuật toán
+</template>
