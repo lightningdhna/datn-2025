@@ -1,79 +1,86 @@
 <script lang="ts" setup>
-import VerticalNavGroup from '@/@layouts/components/VerticalNavGroup.vue'
-import VerticalNavLink from '@layouts/components/VerticalNavLink.vue'
+import VerticalNavGroup from "@/@layouts/components/VerticalNavGroup.vue";
+import VerticalNavLink from "@layouts/components/VerticalNavLink.vue";
 </script>
 
 <template>
-  <VerticalNavGroup
-    :item="{
-      title: 'Nhà cung cấp',
-    }"
-  >
+  <div style="width: 100%">
     <VerticalNavLink
+        :item="{
+          title: 'Nhà cung cấp',
+          icon: 'bx-package',
+          to: '/carrier/supplier-list',
+        }"
+      />
+    <!-- <VerticalNavGroup
       :item="{
-        title: 'Danh sách',
-        icon: 'bx-package',
-        to: '/carrier/supplier',
-      }"
-    />
-    <VerticalNavLink
-      :item="{
-        title: 'Chờ duyệt',
-        icon: 'bx-package',
-        to: '/carrier/supplier',
-      }"
-    />
-  </VerticalNavGroup>
-
-  <VerticalNavLink
-    :item="{
-      title: 'Kho hàng',
-      icon: 'bx-home',
-      to: '/carrier/supplier',
-    }"
-  />
-
-  <VerticalNavLink
-    :item="{
-      title: 'Đội xe',
-      icon: 'bx-bus',
-      to: '/carrier/truck',
-    }"
-  />
-
-  <VerticalNavGroup
-    :item="{
-      title: 'Đơn vận chuyển',
-      icon: 'bx-receipt',
-
-    }"
-  >
-    <VerticalNavLink
-      :item="{
-        title: 'Danh sách',
+        title: 'Nhà cung cấp',
         icon: 'bx-package',
       }"
-    />
+    >
+
+
+      <VerticalNavLink
+        :item="{
+          title: 'Chờ duyệt',
+          icon: 'bx-hourglass',
+          to: '/carrier/supplier-pending-list',
+        }"
+      />
+    </VerticalNavGroup> -->
+
     <VerticalNavLink
       :item="{
-        title: 'Chờ duyệt',
-        icon: 'bx-package',
+        title: 'Kho hàng',
+        icon: 'bx-home',
+        to: '/carrier/warehouse',
       }"
     />
-  </VerticalNavGroup>
 
-  <VerticalNavLink
-    :item="{
-      title: 'Kế hoạch vận chuyển',
-      icon: 'bx-receipt',
-      to: '/carrier/plan',
-    }"
-  />
-  <VerticalNavLink
-    :item="{
-      title: 'Thống kê',
-      icon: 'bx-bar-chart-alt',
-      to: '/carrier/statistic',
-    }"
-  />
+    <VerticalNavLink
+      :item="{
+        title: 'Đội xe',
+        icon: 'bxs-truck',
+        to: '/carrier/truck',
+      }"
+    />
+
+    <VerticalNavLink
+      :item="{
+        title: 'Đơn vận chuyển',
+        icon: 'bx-receipt',
+        to: '/carrier/order',
+      }"
+    />
+
+    <VerticalNavLink
+      :item="{
+        title: 'Kế hoạch vận chuyển',
+        icon: 'bx-task',
+        to: '/carrier/plan',
+      }"
+    />
+
+    <VerticalNavGroup
+      :item="{
+        title: 'Thống kê',
+        icon: 'bx-bar-chart-alt',
+      }"
+    >
+      <VerticalNavLink
+        :item="{
+          title: 'Đơn hàng hoàn thành',
+          to: '/carrier/statistic-order',
+          icon: 'bx-check-circle',
+        }"
+      />
+      <VerticalNavLink
+        :item="{
+          title: 'Thống kê vận chuyển',
+          to: '/carrier/statistic-truck',
+          icon: 'bxs-truck',
+        }"
+      ></VerticalNavLink>
+    </VerticalNavGroup>
+  </div>
 </template>

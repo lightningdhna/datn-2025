@@ -1,10 +1,10 @@
 <script lang="ts" setup>
-import UserProfile from './UserProfile.vue'
-import Footer from './Footer.vue'
-import NavbarThemeSwitcher from './NavbarThemeSwitcher.vue'
+import UserProfile from "./UserProfile.vue";
+import Footer from "./Footer.vue";
+import NavbarThemeSwitcher from "./NavbarThemeSwitcher.vue";
 
-import logo from '@images/logo.svg?raw'
-import VerticalNavLayout from '@layouts/components/VerticalNavLayout.vue'
+import logo from "@images/logo.svg?raw";
+import VerticalNavLayout from "@layouts/components/VerticalNavLayout.vue";
 
 // Components
 </script>
@@ -26,7 +26,7 @@ import VerticalNavLayout from '@layouts/components/VerticalNavLayout.vue'
 
         <div
           class="d-flex align-center cursor-pointer ms-lg-n3"
-          style="user-select: none;"
+          style="user-select: none"
         >
           <!-- 👉 Search Trigger button -->
           <IconBtn>
@@ -52,25 +52,22 @@ import VerticalNavLayout from '@layouts/components/VerticalNavLayout.vue'
     </template>
 
     <template #vertical-nav-header="{ toggleIsOverlayNavActive }">
-      <RouterLink class="app-logo app-title-wrapper">
-        <!-- eslint-disable vue/no-v-html -->
-        <div
-          class="d-flex"
-          v-html="logo"
-        />
-        <!-- eslint-enable -->
+      <div class="mb-12 d-flex align-center justify-end">
+        <RouterLink class="app-logo app-title-wrapper" to="/">
+          <!-- eslint-disable vue/no-v-html -->
+          <div class="d-flex" v-html="logo" />
+          <!-- eslint-enable -->
 
-        <h1 class="app-logo-title">
-          Ugh..
-        </h1>
-      </RouterLink>
+          <h1 class="app-logo-title">Ugh..</h1>
+        </RouterLink>
 
-      <IconBtn
-        class="d-block d-lg-none"
-        @click="toggleIsOverlayNavActive(false)"
-      >
-        <VIcon icon="bx-x" />
-      </IconBtn>
+        <IconBtn
+          class="d-block d-lg-none"
+          @click="toggleIsOverlayNavActive(false)"
+        >
+          <!-- <VIcon icon="bx-x" /> -->
+        </IconBtn>
+      </div>
     </template>
 
     <template #vertical-nav-content>

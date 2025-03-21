@@ -1,11 +1,11 @@
 <script lang="ts" setup>
-import type { NavGroup } from '@layouts/types'
+import type { NavGroup } from "@layouts/types";
 
 defineProps<{
-  item: Omit<NavGroup, 'children'>
-}>()
+  item: Omit<NavGroup, "children">;
+}>();
 
-const isOpen = ref(false)
+const isOpen = ref(false);
 </script>
 
 <template>
