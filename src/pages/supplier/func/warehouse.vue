@@ -10,7 +10,7 @@ const search = ref("");
 const firstDate = ref<Date | null>(null);
 const lastDate = ref<Date | null>(null);
 
-const warehouseList = [
+const warehouseList = ref([
   {
     id: "WH001",
     name: "Kho A",
@@ -142,7 +142,7 @@ const warehouseList = [
     ],
   },
   // ... tiếp tục tạo thêm 20 kho tương tự
-];
+]);
 
 const editDialog = ref(false);
 const deleteDialog = ref(false);
@@ -163,14 +163,14 @@ const openDeleteDialog = (id: string) => {
 };
 
 const openNewDialog = () => {
-  console.log('....')
+  console.log("....");
   newItem.value = {
     id: "",
     name: "",
     address: "",
     supplierName: "",
     supplierId: "",
-    totalQuantity: 700,
+    totalQuantity: 0,
     products: [],
   };
   newDialog.value = true;
@@ -194,7 +194,7 @@ const saveEdit = () => {
   console.log(editedItem.value);
   // Nếu tìm thấy sản phẩm, cập nhật giá trị
   if (index !== -1) {
-    warehouse.value[index] = { ...editedItem.value }; // Cập nhật sản phẩm tại vị trí tìm được
+    warehouseList.value[index] = { ...editedItem.value }; // Cập nhật sản phẩm tại vị trí tìm được
   }
 
   // Đóng dialog sau khi lưu
@@ -272,28 +272,29 @@ const formatDate = (date: Date | null) => {
 </script>
 
 <template>
-  <VCard>
-    <VCardItem class="pb-3">
-      <VCardTitle class="text-primary">
-        <VIcon icon="bx-buildings"></VIcon>
-        Danh sách Nhà kho
-      </VCardTitle>
-    </VCardItem>
-    <div>
-      <VCardText class="pt-0">
-        <VRow style="direction: ltr">
-          <VCol cols="12" offset-md="0" md="4">
-            <VTextField
-              v-model="search"
-              placeholder="Search ..."
-              append-inner-icon="bx-search"
-              single-line
-              hide-details
-              dense
-              outlined
-            />
-          </VCol>
-          <!-- <VCol
+  <div>
+    <VCard>
+      <VCardItem class="pb-3">
+        <VCardTitle class="text-primary">
+          <VIcon icon="bx-buildings"></VIcon>
+          Danh sách Nhà kho
+        </VCardTitle>
+      </VCardItem>
+      <div>
+        <VCardText class="pt-0">
+          <VRow style="direction: ltr">
+            <VCol cols="12" offset-md="0" md="4">
+              <VTextField
+                v-model="search"
+                placeholder="Search ..."
+                append-inner-icon="bx-search"
+                single-line
+                hide-details
+                dense
+                outlined
+              />
+            </VCol>
+            <!-- <VCol
           cols="auto"
           md="2"
           offset-md="2"
@@ -321,180 +322,197 @@ const formatDate = (date: Date | null) => {
             label="to"
           />
         </vcol> -->
-        </VRow>
-      </VCardText>
+          </VRow>
+        </VCardText>
 
-      <!-- 👉 Data Table  -->
-      <VDataTable
-        :headers="headers"
-        :items="warehouseList || []"
-        :search="search"
-        :items-per-page="10"
-        class="text-no-wrap"
-      >
-        <template #expanded-row="slotProps">
-          <tr class="v-data-table__tr">
-            <td :colspan="headers.length">
-              <div class="ms-10">
-                <div>Danh sách mặt hàng</div>
-                <div class="d-flex space-between gap-2">
-                  <div
-                    v-for="product in slotProps.item.products"
-                    :key="product.id"
-                    class="mb-1"
-                  >
-                    <a
-                      href="#"
-                      @click.prevent="router.push(`product-info/${product.id}`)"
-                      class="text-decoration-none text-primary"
+        <!-- 👉 Data Table  -->
+        <VDataTable
+          :headers="headers"
+          :items="warehouseList || []"
+          :search="search"
+          :items-per-page="10"
+          class="text-no-wrap"
+        >
+          <template #expanded-row="slotProps">
+            <tr class="v-data-table__tr">
+              <td :colspan="headers.length">
+                <div class="ms-10">
+                  <div>Danh sách mặt hàng</div>
+                  <div class="d-flex space-between gap-2">
+                    <div
+                      v-for="product in slotProps.item.products"
+                      :key="product.id"
+                      class="mb-1"
                     >
-                      {{ product.name }}
-                    </a>
+                      <a
+                        href="#"
+                        @click.prevent="
+                          router.push(`product-info/${product.id}`)
+                        "
+                        class="text-decoration-none text-primary"
+                      >
+                        {{ product.name }}
+                      </a>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </td>
-          </tr>
-        </template>
+              </td>
+            </tr>
+          </template>
 
-        <template #item.supplier="{ item }">
-          <RouterLink :to="`supplier-info/${item.supplierId}`">
-            {{ item.supplierName }}
-          </RouterLink>
-        </template>
+          <template #item.supplier="{ item }">
+            <RouterLink :to="`supplier-info/${item.supplierId}`">
+              {{ item.supplierName }}
+            </RouterLink>
+          </template>
 
-        <!-- Delete -->
-        <template #item.action="{ item }">
-          <IconBtn @click="router.push(`warehouse-info/${item.id}`)">
-            <VIcon icon="bx-info-circle" />
-          </IconBtn>
-          <IconBtn @click="router.push(`warehouse-info/${item.id}`)">
-            <VIcon icon="bx-info-circle" />
-          </IconBtn>
-          <IconBtn @click="router.push(`warehouse-info/${item.id}`)">
-            <VIcon icon="bx-info-circle" />
-          </IconBtn>
-        </template>
-      </VDataTable>
+          <!-- Delete -->
+          <template #item.action="{ item }">
+            <IconBtn @click="router.push(`warehouse-info/${item.id}`)">
+              <VIcon icon="bx-info-circle" />
+            </IconBtn>
+            <IconBtn @click="openEditDialog(item)">
+              <VIcon icon="bx-edit" color="success" />
+            </IconBtn>
+            <IconBtn @click="openDeleteDialog(item.id)" >
+              <VIcon color="error" icon="bx-trash" />
+            </IconBtn>
+          </template>
+        </VDataTable>
+      </div>
+    </VCard>
+
+    <VDialog v-model="editDialog" max-width="600px">
+      <VCard title="Edit Item">
+        <VCardText>
+          <VFrom @submit.prevent>
+            <VRow>
+              <!-- fullName -->
+              <VCol cols="12" sm="6">
+                <VTextField
+                  v-model="editedItem.name"
+                  label="Tên"
+                  :rules="[requiredValidator]"
+                />
+              </VCol>
+
+              <VCol cols="12" sm="6">
+                <VTextField
+                  v-model="editedItem.address"
+                  label="Địa chỉ"
+                  :rules="[requiredValidator]"
+                />
+              </VCol>
+
+              <!-- fullName -->
+              <VCol cols="12" sm="6">
+                <VTextField
+                  v-model="editedItem.id"
+                  label="Mã"
+                  :rules="[requiredValidator]"
+                  readonly
+                />
+              </VCol>
+            </VRow>
+          </VFrom>
+        </VCardText>
+
+        <VCardText>
+          <div class="self-align-end d-flex gap-4 justify-end">
+            <VBtn color="gray" variant="outlined" @click="closeEdit">
+              <VIcon icon="bx-x"></VIcon> | Hủy bỏ
+            </VBtn>
+            <VBtn color="success" variant="elevated" @click="saveEdit"
+              ><VIcon icon="bx-save"></VIcon>| Lưu lại
+            </VBtn>
+          </div>
+        </VCardText>
+      </VCard>
+    </VDialog>
+
+    <VDialog v-model="newDialog" max-width="600px">
+      <VCard title="Edit Item">
+        <VCardText>
+          <VFrom @submit.prevent>
+            <VRow>
+              <!-- fullName -->
+              <VCol cols="12" sm="6">
+                <VTextField
+                  v-model="newItem.name"
+                  label="Tên"
+                  :rules="[requiredValidator]"
+                />
+              </VCol>
+
+
+              <VCol cols="12" sm="6">
+                <VTextField
+                  v-model="newItem.address"
+                  label="Địa chỉ"
+                  :rules="[requiredValidator]"
+                />
+              </VCol>
+            </VRow>
+          </VFrom>
+        </VCardText>
+
+        <VCardText>
+          <div class="self-align-end d-flex gap-4 justify-end">
+            <VBtn
+              color="gray"
+              variant="outlined"
+              @click="() => (newDialog = false)"
+            >
+              <VIcon icon="bx-x"></VIcon> | Hủy bỏ
+            </VBtn>
+            <VBtn color="success" variant="elevated" @click="saveNewItem"
+              ><VIcon icon="bx-save"></VIcon>| Thêm mới
+            </VBtn>
+          </div>
+        </VCardText>
+      </VCard>
+    </VDialog>
+
+    <VDialog v-model="deleteDialog" max-width="500px">
+      <VCard title="Bạn có muốn xóa thông tin kho này không?">
+        <VCardText>
+          <div class="d-flex justify-center gap-4">
+            <VBtn
+              variant="outlined"
+              color="secondary"
+              @click="() => (deleteDialog = false)"
+            >
+              Bỏ qua
+            </VBtn>
+            <VBtn color="error" variant="outlined" @click="deleteItem">
+              Xác nhận xóa
+            </VBtn>
+          </div>
+        </VCardText>
+      </VCard>
+    </VDialog>
+
+    <div class="dock-div">
+      <VBtn class="dock-button" color="success" @click="">
+        <VIcon icon="bx-upload" class="me-2" /> | Upload file csv
+      </VBtn>
+      <VBtn @click="openNewDialog" class="dock-button ms-2">
+        <VIcon icon="bxs-file-plus" class="me-2" /> | Thêm kho
+      </VBtn>
     </div>
-  </VCard>
-
-  <VDialog v-model="editDialog" max-width="600px">
-    <VCard title="Edit Item">
-      <VCardText>
-        <VFrom @submit.prevent>
-          <VRow>
-            <!-- fullName -->
-            <VCol cols="12" sm="6">
-              <VTextField
-                v-model="editedItem.name"
-                label="Tên"
-                :rules="[requiredValidator]"
-              />
-            </VCol>
-
-            <!-- fullName -->
-            <VCol cols="12" sm="6">
-              <VTextField
-                v-model="editedItem.id"
-                label="Mã"
-                :rules="[requiredValidator]"
-                readonly
-              />
-            </VCol>
-          </VRow>
-        </VFrom>
-      </VCardText>
-
-      <VCardText>
-        <div class="self-align-end d-flex gap-4 justify-end">
-          <VBtn color="gray" variant="outlined" @click="closeEdit">
-            <VIcon icon="bx-x"></VIcon> | Hủy bỏ
-          </VBtn>
-          <VBtn color="success" variant="elevated" @click="saveEdit"
-            ><VIcon icon="bx-save"></VIcon>| Lưu lại
-          </VBtn>
-        </div>
-      </VCardText>
-    </VCard>
-  </VDialog>
-
-  <VDialog v-model="newDialog" max-width="600px">
-    <VCard title="Edit Item">
-      <VCardText>
-        <VFrom @submit.prevent>
-          <VRow>
-            <!-- fullName -->
-            <VCol cols="12" sm="6">
-              <VTextField
-                v-model="newItem.name"
-                label="Tên"
-                :rules="[requiredValidator]"
-              />
-            </VCol>
-            <VCol cols="12" sm="6">
-              <VTextField
-                label="Giá"
-                suffix=",000 VNĐ"
-                :rules="[requiredValidator]"
-              />
-            </VCol>
-          </VRow>
-        </VFrom>
-      </VCardText>
-
-      <VCardText>
-        <div class="self-align-end d-flex gap-4 justify-end">
-          <VBtn
-            color="gray"
-            variant="outlined"
-            @click="() => (newDialog = false)"
-          >
-            <VIcon icon="bx-x"></VIcon> | Hủy bỏ
-          </VBtn>
-          <VBtn color="success" variant="elevated" @click="saveNewItem"
-            ><VIcon icon="bx-save"></VIcon>| Thêm mới
-          </VBtn>
-        </div>
-      </VCardText>
-    </VCard>
-  </VDialog>
-
-  <VDialog v-model="deleteDialog" max-width="500px">
-    <VCard title="Bạn có muốn xóa thông tin xe này không?">
-      <VCardText>
-        <div class="d-flex justify-center gap-4">
-          <VBtn
-            variant="outlined"
-            color="secondary"
-            @click="() => (deleteDialog = false)"
-          >
-            Bỏ qua
-          </VBtn>
-          <VBtn color="error" variant="outlined" @click="deleteItem">
-            Xác nhận xóa
-          </VBtn>
-        </div>
-      </VCardText>
-    </VCard>
-  </VDialog>
-  <div class="dock-button">
-    <VBtn>
-      <VIcon icon="bxs-file-plus" class="ms-0 me-1" @click="console.log('....')" />
-      | Thêm kho
-    </VBtn>
   </div>
 </template>
 
 <style scoped>
-.dock-button {
+.dock-div {
   position: fixed; /* Cố định vị trí */
   top: 100px; /* Cách phía trên 20px */
   right: 50px; /* Cách phía phải 20px */
   z-index: 1000; /* Đảm bảo nút nằm trên các thành phần khác */
+}
+.dock-button {
   transition: all 0.3s ease; /* Hiệu ứng chuyển động mềm */
 }
-
 .dock-button:hover {
   transform: scale(1.1); /* Phóng to nhẹ khi hover */
 }

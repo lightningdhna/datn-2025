@@ -149,25 +149,14 @@ const deleteItem = () => {
       >
         <template #item.cost="{ item }"> 500,000 VND </template>
         <template #item.action="{ item }">
-          <IconBtn>
-            <VIcon
-              icon="bx-info-circle"
-              @click="router.push(`/supplier/product-info/${item.id}`)"
-            />
+          <IconBtn @click="router.push(`/supplier/product-info/${item.id}`)">
+            <VIcon icon="bx-info-circle" />
           </IconBtn>
-          <IconBtn>
-            <VIcon
-              color="success"
-              icon="bx-edit"
-              @click="openEditDialog(item)"
-            />
+          <IconBtn @click="openEditDialog(item)">
+            <VIcon color="success" icon="bx-edit" />
           </IconBtn>
-          <IconBtn>
-            <VIcon
-              color="error"
-              icon="bx-trash"
-              @click="openDeleteDialog(item.id)"
-            />
+          <IconBtn @click="openDeleteDialog(item.id)">
+            <VIcon color="error" icon="bx-trash" />
           </IconBtn>
         </template>
       </VDataTable>
@@ -256,7 +245,7 @@ const deleteItem = () => {
   </VDialog>
 
   <VDialog v-model="deleteDialog" max-width="500px">
-    <VCard title="Bạn có muốn xóa thông tin xe này không?">
+    <VCard title="Bạn có muốn xóa thông tin sản phẩm này không?">
       <VCardText>
         <div class="d-flex justify-center gap-4">
           <VBtn
@@ -275,8 +264,8 @@ const deleteItem = () => {
   </VDialog>
 
   <div class="dock-button">
-    <VBtn>
-      <VIcon icon="bxs-file-plus" class="ms-0 me-1" @click="openNewDialog" />
+    <VBtn @click="openNewDialog">
+      <VIcon icon="bxs-file-plus" class="ms-0 me-1" />
       | Thêm
     </VBtn>
   </div>
