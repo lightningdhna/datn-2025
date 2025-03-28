@@ -27,8 +27,8 @@ const headers = [
 <template>
   <VCardItem class="pb-3">
     <VCardTitle class="text-primary">
-      <VIcon icon="bx-buildings"></VIcon>
-      Danh sách Nhà cung cấp
+      <VIcon icon="bx-list-check"></VIcon>
+      Thống kê đơn hàng
     </VCardTitle>
   </VCardItem>
 

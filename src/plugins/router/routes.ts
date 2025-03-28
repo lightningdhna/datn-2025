@@ -1,5 +1,5 @@
 export const routes = [
-  { path: "/", redirect: "/carrier" },
+  { path: "/", redirect: "/supplier" },
   {
     path: "/admin",
 
@@ -127,6 +127,30 @@ export const routes = [
     component: () => import("@/pages/supplier/default.vue"),
     children: [
       {
+        path: "supplier-info/:id",
+        // component: () => import("@/pages/supplier/func/supplier-info.vue"),
+        props:true,
+      },
+      {
+        path: "product-info/:id",
+        component: () => import("@/pages/supplier/func/product-info.vue"),
+        props:true,
+      },
+      {
+        path: "warehouse-info/:id",
+        component: () => import("@/pages/supplier/func/warehouse-info.vue"),
+        props:true,
+      },
+      {
+        path: "dropshipper-info/:id",
+        component: () => import("@/pages/supplier/func/dropshipper-info.vue"),
+        props:true,
+      },
+      {
+        path: "general",
+        component: () => import("@/pages/supplier/func/general.vue"),
+      },
+      {
         path: "product",
         component: () => import("@/pages/supplier/func/product.vue"),
       },
@@ -137,6 +161,14 @@ export const routes = [
       {
         path: "warehouse",
         component: () => import("@/pages/supplier/func/warehouse.vue"),
+      },
+      {
+        path: "dropshipper-list",
+        component: () => import("@/pages/supplier/func/dropshipper-list.vue"),
+      },
+      {
+        path: "dropshipper-pending",
+        component: () => import("@/pages/supplier/func/dropshipper-pending.vue"),
       },
     ],
   },

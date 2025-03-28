@@ -531,7 +531,7 @@ const requiredValidator = (value: string | null | undefined) => {
 
   <!-- 👉 new Dialog  -->
   <VDialog v-model="newDialog" max-width="600px">
-    <VCard title="Edit Item">
+    <VCard title="Thêm mới xe tải">
       <VCardText>
         <div class="text-body-1 mb-6">
           <!-- Biển số xe: <span class="text-h6">{{ editedItem?.id }}</span> -->

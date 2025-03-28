@@ -18,7 +18,7 @@ const statisticList = ref(
 );
 
 const headers = [
-  { title: "Nhà cung cấp", key: "truckName" },
+  { title: "Tên xe", key: "truckName" },
   { title: "Biển số xe", key: "truckId" },
   { title: "Số đơn hoàn thành", key: "completedOrders" },
   { title: "Quãng đường đã đi", key: "distance" },
@@ -48,8 +48,8 @@ const formatCurrency = (value: string | number) => {
 <template>
   <VCardItem class="pb-3">
     <VCardTitle class="text-primary">
-      <VIcon icon="bx-buildings"></VIcon>
-      Danh sách Nhà cung cấp
+      <VIcon icon="bxs-truck"></VIcon>
+      Thống kê vận chuyển các Xe
     </VCardTitle>
   </VCardItem>
 
