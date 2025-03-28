@@ -24,6 +24,26 @@ export const routes = [
     component: () => import("@/pages/carrier/default.vue"),
     children: [
       {
+        path: "supplier-info/:id",
+        component: () => import("@/pages/carrier/func/supplier-info.vue"),
+        props:true,
+      },
+      {
+        path: "product-info/:id",
+        component: () => import("@/pages/carrier/func/product-info.vue"),
+        props:true,
+      },
+      {
+        path: "warehouse-info/:id",
+        component: () => import("@/pages/carrier/func/warehouse-info.vue"),
+        props:true,
+      },
+      {
+        path: "order-info/:id",
+        component: () => import("@/pages/carrier/func/order-info.vue"),
+        props:true,
+      },
+      {
         path: "supplier-list",
         component: () => import("@/pages/carrier/func/supplier-list.vue"),
       },

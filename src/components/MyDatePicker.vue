@@ -1,64 +1,60 @@
 <script setup>
-import { defineProps, onMounted, ref, watch } from 'vue'
-import { useDisplay } from 'vuetify'
+import { defineProps, onMounted, ref, watch } from "vue";
+import { useDisplay } from "vuetify";
 
-const { label, color, customClass, rules, variant, density } = defineProps([
-  'label',
-  'color',
-  'customClass',
-  'rules',
-  'variant',
-  'density',
-])
+const { label, color, customClass, rules, variant, density, disabled } =
+  defineProps([
+    "label",
+    "color",
+    "customClass",
+    "rules",
+    "variant",
+    "density",
+    "disabled", // Thêm thuộc tính disabled
+  ]);
 
 const clearDate = () => {
-  formattedDate.value = null
-  model.value = null
-  menu.value = false // Đóng menu nếu đang mở
-}
+  formattedDate.value = null;
+  model.value = null;
+  menu.value = false; // Đóng menu nếu đang mở
+};
 
-const model = defineModel()
-const { width, height, xs } = useDisplay()
+const model = defineModel();
+const { width, height, xs } = useDisplay();
 
-const menu = ref(false)
-const formattedDate = ref(formatDate(model.value))
+const menu = ref(false);
+const formattedDate = ref(formatDate(model.value));
 
-const handleDateChange = newDate => {
-  model.value = newDate
-}
+const handleDateChange = (newDate) => {
+  model.value = newDate;
+};
 
 watch(
   () => model.value,
-  newVal => {
-    formattedDate.value = formatDate(newVal)
-    menu.value = false
-  },
-)
+  (newVal) => {
+    formattedDate.value = formatDate(newVal);
+    menu.value = false;
+  }
+);
 onMounted(() => {
-  model.value = model.value ? new Date(model.value) : null
-})
+  model.value = model.value ? new Date(model.value) : null;
+});
 
 function formatDate(inputDate) {
-  if (!inputDate)
-    return ''
-  const parsedDate = new Date(inputDate)
-  if (!parsedDate.getTime())
-    return ''
+  if (!inputDate) return "";
+  const parsedDate = new Date(inputDate);
+  if (!parsedDate.getTime()) return "";
 
-  const day = `0${parsedDate.getDate()}`.slice(-2)
-  const month = `0${parsedDate.getMonth() + 1}`.slice(-2)
-  const year = parsedDate.getFullYear()
+  const day = `0${parsedDate.getDate()}`.slice(-2);
+  const month = `0${parsedDate.getMonth() + 1}`.slice(-2);
+  const year = parsedDate.getFullYear();
 
-  return `${day}/${month}/${year}`
+  return `${day}/${month}/${year}`;
 }
 </script>
 
 <template v-if="formattedDate">
-  <VMenu
-    v-model="menu"
-    :close-on-content-click="false"
-    location="center"
-  >
+  <VMenu v-model="menu" :close-on-content-click="false" location="center">
     <template #activator="{ props }">
       <VTextField
         v-model="formattedDate"
@@ -79,6 +75,7 @@ function formatDate(inputDate) {
     <div class="position-relative">
       <VDatePicker
         v-model="model"
+        disabled
         :color="color"
         :width="xs ? width - 30 : 'auto'"
         height="auto"
