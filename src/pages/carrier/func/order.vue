@@ -254,6 +254,8 @@ const headers = [
   { title: "Nhà cung cấp", key: "supplierName" },
   { title: "Ngày đặt", key: "orderDate" },
   { title: "Địa chỉ", key: "address" },
+  { title: "Số lượng", key: "quantity" },
+
   { title: "Trạng thái", key: "status" },
 
   { title: "Chi tiết", key: "action", sortable: false },
@@ -264,6 +266,9 @@ const headers2 = [
   { title: "Nhà cung cấp", key: "supplierName" },
   { title: "Ngày đặt", key: "orderDate" },
   { title: "Địa chỉ", key: "address" },
+  { title: "Số lượng", key: "quantity" },
+
+  { title: "Số lượng", key: "quantity" },
 
   { title: "Chi tiết", key: "action", sortable: false },
 ];

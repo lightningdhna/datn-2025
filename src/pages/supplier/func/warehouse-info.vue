@@ -228,10 +228,11 @@ const deleteItem = () => {
             <VRow>
               <!-- fullName -->
               <VCol cols="12" sm="6">
-                <VTextField
+                <VAutocomplete
                   v-model="newItem.name"
                   label="Tên"
                   :rules="[requiredValidator]"
+                  :items="['cam', 'bưởi', 'táo', 'lê', 'mit']"
                 />
               </VCol>
 

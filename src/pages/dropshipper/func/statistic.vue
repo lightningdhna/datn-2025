@@ -1,67 +1,81 @@
 <script setup lang="ts">
-const data = ref([])
+import { ref } from "vue";
+
+const search = ref("");
+
+const statisticList = ref(
+  Array.from({ length: 30 }, (_, index) => ({
+    productName: `PRD ${index + 1}`, // Tên mặt hàng
+    id: `PRD${String(index + 1).padStart(3, "0")}`, // ID mặt hàng
+    totalProducts: Math.floor(Math.random() * 1000) + 1, // Số mặt hàng (1-1000)
+    totalWarehouses: Math.floor(Math.random() * 10) + 1, // Số kho (1-10)
+    completedOrders: Math.floor(Math.random() * 500) + 1, // Số đơn hàng đã hoàn thành (1-500)
+    pendingOrders: Math.floor(Math.random() * 200) + 1, // Số đơn hàng đang đợi (1-200)
+    price: (Math.random() * 100).toFixed(2), // Giá (ngẫu nhiên từ 0 đến 100)
+    supplierName: `Supplier ${index + 1}`, // Tên nhà cung cấp
+    supplierId: `SUP${String(index + 1).padStart(3, "0")}`, // Mã nhà cung cấp
+    soldQuantity: Math.floor(Math.random() * 300) + 1, // Số lượng đã bán (1-300)
+  }))
+);
 
 const headers = [
-  { title: 'NAME', key: 'fullName' },
-  { title: 'EMAIL', key: 'email' },
-  { title: 'DATE', key: 'startDate' },
-  { title: 'SALARY', key: 'salary' },
-  { title: 'AGE', key: 'age' },
-  { title: 'STATUS', key: 'status' },
-]
-
-const resolveStatusVariant = (status: number) => {
-  if (status === 1)
-    return { color: 'primary', text: 'Current' }
-  else if (status === 2)
-    return { color: 'success', text: 'Professional' }
-  else if (status === 3)
-    return { color: 'error', text: 'Rejected' }
-  else if (status === 4)
-    return { color: 'warning', text: 'Resigned' }
-  else
-    return { color: 'info', text: 'Applied' }
-}
+  { title: "Tên mặt hàng", key: "product" },
+  { title: "Giá", key: "price" },
+  { title: "Nhà cung cấp", key: "supplierName", align: " d-none" },
+  { title: "Nhà cung cấp", key: "supplier" },
+  { title: "Số lượng hàng còn", key: "totalProducts" },
+  { title: "Số lượng kho hàng", key: "totalWarehouses" },
+  { title: "Số đơn đợi", key: "pendingOrders" },
+  { title: "Số đơn hoàn thành", key: "completedOrders" },
+  { title: "Số lượng đã bán", key: "soldQuantity" },
+];
 </script>
 
 <template>
-  <VDataTable
-    :headers="headers"
-    :items="data"
-    :items-per-page="10"
-    show-select
-  >
-    <!-- full name -->
-    <template #item.fullName="{ item }">
-      <div class="d-flex align-center">
-        <VAvatar
-          size="32"
-          :color="item.avatar ? '' : 'primary'"
-          :class="item.avatar ? '' : 'v-avatar-light-bg primary--text'"
-          :variant="!item.avatar ? 'tonal' : undefined"
-        >
-          <VImg
-            v-if="item.avatar"
-            :src="item.avatar"
-          />
-          <span v-else>{{ avatarText(item.fullName) }}</span>
-        </VAvatar>
-        <div class="d-flex flex-column ms-3">
-          <span class="d-block font-weight-medium text-high-emphasis text-truncate">{{ item.fullName }}</span>
-          <small>{{ item.post }}</small>
-        </div>
-      </div>
-    </template>
+  <VCard>
+    <VCardItem class="pb-3">
+      <VCardTitle class="text-primary">
+        <VIcon icon="bx-buildings"></VIcon>
+        Thống kê số lượng đơn hàng
+      </VCardTitle>
+    </VCardItem>
 
-    <!-- status -->
-    <template #item.status="{ item }">
-      <VChip
-        :color="resolveStatusVariant(item.status).color"
-        class="font-weight-medium"
-        size="small"
-      >
-        {{ resolveStatusVariant(item.status).text }}
-      </VChip>
-    </template>
-  </VDataTable>
+    <VCardText class="pt-0">
+      <VRow style="direction: ltr">
+        <VCol cols="12" offset-md="0" md="4">
+          <VTextField
+            v-model="search"
+            placeholder="Search ..."
+            append-inner-icon="bx-search"
+            single-line
+            hide-details
+            dense
+            outlined
+          />
+        </VCol>
+      </VRow>
+    </VCardText>
+
+    <!-- 👉 Data Table  -->
+    <VDataTable
+      :headers="headers"
+      :items="statisticList"
+      :search="search"
+      :items-per-page="10"
+    >
+      <template #item.supplier="{ item }">
+        <RouterLink :to="`supplier-info/${item.supplierId}`">
+          {{ item.supplierName }}
+        </RouterLink>
+      </template>
+      <template #item.product="{ item }">
+        <RouterLink
+          class="text-button text-primary"
+          :to="`product-info/${item.productName}`"
+        >
+          {{ item.id }}
+        </RouterLink>
+      </template>
+    </VDataTable>
+  </VCard>
 </template>

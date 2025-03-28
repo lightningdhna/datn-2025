@@ -1,5 +1,10 @@
 export const routes = [
-  { path: "/", redirect: "/supplier" },
+  { path: "/", redirect: "/default" },
+  {
+    path: "/default",
+    component: () => import("@/pages/default.vue"),
+    
+  },
   {
     path: "/admin",
 
@@ -47,11 +52,7 @@ export const routes = [
         path: "supplier-list",
         component: () => import("@/pages/carrier/func/supplier-list.vue"),
       },
-      {
-        path: "supplier-pending-list",
-        component: () =>
-          import("@/pages/carrier/func/supplier-pending-list.vue"),
-      },
+
       {
         path: "warehouse",
         component: () => import("@/pages/carrier/func/warehouse.vue"),
@@ -104,21 +105,54 @@ export const routes = [
     component: () => import("@/pages/dropshipper/default.vue"),
     children: [
       {
+        path: "supplier-info/:id",
+        component: () => import("@/pages/dropshipper/func/supplier-info.vue"),
+        props:true,
+      },
+      {
+        path: "order-info/:id",
+        component: () => import("@/pages/dropshipper/func/order-info.vue"),
+        props:true,
+      },
+      {
+        path: "product-info/:id",
+        component: () => import("@/pages/dropshipper/func/product-info.vue"),
+        props:true,
+      },
+      {
+        path: "warehouse-info/:id",
+        component: () => import("@/pages/dropshipper/func/warehouse-info.vue"),
+        props:true,
+      },
+      {
+        path: "general",
+        component: () => import("@/pages/dropshipper/func/general.vue"),
+      },
+      {
         path: "product",
         component: () => import("@/pages/dropshipper/func/product.vue"),
-      },
-      {
-        path: "register",
-        component: () => import("@/pages/dropshipper/func/register.vue"),
-      },
-      {
-        path: "statistic",
-        component: () => import("@/pages/dropshipper/func/statistic.vue"),
       },
       {
         path: "supplier",
         component: () => import("@/pages/dropshipper/func/supplier.vue"),
       },
+      {
+        path: "warehouse",
+        component: () => import("@/pages/dropshipper/func/warehouse.vue"),
+      },
+      {
+        path: "registration",
+        component: () => import("@/pages/dropshipper/func/registration.vue"),
+      },
+      {
+        path: "order",
+        component: () => import("@/pages/dropshipper/func/order.vue"),
+      },
+      {
+        path: "statistic",
+        component: () => import("@/pages/dropshipper/func/statistic.vue"),
+      },
+
     ],
   },
   {

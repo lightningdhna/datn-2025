@@ -1,185 +1,178 @@
 <script setup lang="ts">
-import type { ProductBrief } from '@/models/product'
+const router = useRouter();
 
-const search = ref('')
-const lowPrice = ref<string | null>(null)
-const highPrice = ref <string | null>(null)
+const productList = ref([
+  { id: "SP001", name: "Táo", quantityLeft: 50, quantitySold: 20 },
+  { id: "SP002", name: "Cam", quantityLeft: 30, quantitySold: 15 },
+  { id: "SP003", name: "Chuối", quantityLeft: 20, quantitySold: 10 },
+  { id: "SP004", name: "Xoài", quantityLeft: 15, quantitySold: 5 },
+  { id: "SP005", name: "Dưa hấu", quantityLeft: 25, quantitySold: 12 },
+  { id: "SP006", name: "Lê", quantityLeft: 10, quantitySold: 8 },
+  { id: "SP007", name: "Ổi", quantityLeft: 40, quantitySold: 18 },
+  { id: "SP008", name: "Mận", quantityLeft: 35, quantitySold: 22 },
+  { id: "SP009", name: "Dứa", quantityLeft: 18, quantitySold: 9 },
+  { id: "SP010", name: "Nho", quantityLeft: 22, quantitySold: 11 },
+  { id: "SP011", name: "Bưởi", quantityLeft: 60, quantitySold: 30 },
+  { id: "SP012", name: "Chanh", quantityLeft: 45, quantitySold: 25 },
+  { id: "SP013", name: "Quýt", quantityLeft: 12, quantitySold: 6 },
+  { id: "SP014", name: "Dâu tây", quantityLeft: 28, quantitySold: 14 },
+  { id: "SP015", name: "Kiwi", quantityLeft: 33, quantitySold: 17 },
+  { id: "SP016", name: "Lựu", quantityLeft: 50, quantitySold: 20 },
+  { id: "SP017", name: "Đào", quantityLeft: 30, quantitySold: 15 },
+  { id: "SP018", name: "Mít", quantityLeft: 20, quantitySold: 10 },
+  { id: "SP019", name: "Na", quantityLeft: 15, quantitySold: 5 },
+  { id: "SP020", name: "Sầu riêng", quantityLeft: 25, quantitySold: 12 },
+  { id: "SP021", name: "Me", quantityLeft: 10, quantitySold: 8 },
+  { id: "SP022", name: "Chôm chôm", quantityLeft: 40, quantitySold: 18 },
+  { id: "SP023", name: "Vải", quantityLeft: 35, quantitySold: 22 },
+  { id: "SP024", name: "Măng cụt", quantityLeft: 18, quantitySold: 9 },
+  { id: "SP025", name: "Thanh long", quantityLeft: 22, quantitySold: 11 },
+  { id: "SP026", name: "Dừa", quantityLeft: 60, quantitySold: 30 },
+  { id: "SP027", name: "Táo tàu", quantityLeft: 45, quantitySold: 25 },
+  { id: "SP028", name: "Hồng xiêm", quantityLeft: 12, quantitySold: 6 },
+  { id: "SP029", name: "Cóc", quantityLeft: 28, quantitySold: 14 },
+  { id: "SP030", name: "Khế", quantityLeft: 33, quantitySold: 17 },
+]);
 
-const productList = ref<ProductBrief[]>([
-  {
-    id: '1',
-    name: 'Nước ép  - Cam Ép',
-    price: 45000,
-    imageUrl: 'https://encrypted-tbn2.gstatic.com/images?q=tbn:ANd9GcQnbr3AR0v4jz4ZXDFhmPSV1zN_Wbae-7qaPHG5D1gKV4b6Wrle4Q-_l9vIpkECzx5W51gJeTsjZRFfYYiMASQJKlVzhSIyZDCGNKvc74Y',
-  },
-  {
-    id: '2',
-    name: 'Nước ép - Dứa Ép',
-    price: 45000,
-    imageUrl: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTct4QnA6zwU4tyn9vq_ADJ8Ey6RfIWK-6V6g&s',
-  },
-  {
-    id: '3',
-    name: 'Nước ép  - Ổi Ép',
-    price: 10000,
-    imageUrl: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRfn9JN7gVNhckoRVUML4BZwny8r1jDsTaA8Q&s',
-  },
-  {
-    id: '4',
-    name: 'Nước ép  - Táo Ép',
-    price: 45000,
-    imageUrl: 'https://vcdn1-suckhoe.vnecdn.net/2019/09/03/benefitsoflime-1567496996-9070-1567497249.jpg?w=1200&h=0&q=100&dpr=1&fit=crop&s=LpPndYyqCShHL-Scv4JrJw',
-  },
-  {
-    id: '5',
-    name: 'Nước ép - Dưa Hấu Ép',
-    price: 60000,
-    imageUrl: 'https://thucphamdongxanh.com/wp-content/uploads/2019/07/le.jpeg',
-  },
-  {
-    id: '6',
-    name: 'Nước ép  - Chanh Dây Ép',
-    price: 45000,
-    imageUrl: 'https://product.hstatic.net/200000157781/product/man_do_an_phuoc_8faf83a0b20e4b479fb5cb10a0490421.png',
-  },
-  {
-    id: '7',
-    name: 'Nước ép  - Xoài Ép',
-    price: 45000,
-    imageUrl: 'https://cdn.shopify.com/s/files/1/0272/0107/5560/products/Mango_juice_500ml_540x.jpg?v=1614320136',
-  },
-  {
-    id: '8',
-    name: ' Dâu Ép',
-    price: 45000,
-    imageUrl: 'https://cdn.shopify.com/s/files/1/0272/0107/5560/products/Strawberry_juice_500ml_540x.jpg?v=1614320136',
-  },
-  {
-    id: '9',
-    name: ' Việt Quất Ép',
-    price: 45000,
-    imageUrl: 'https://cdn.shopify.com/s/files/1/0272/0107/5560/products/Blueberry_juice_500ml_540x.jpg?v=1614320136',
-  },
-  {
-    id: '10',
-    name: ' Lựu Ép',
-    price: 45000,
-    imageUrl: 'https://citifruit.com/uploads/images/Products/trai-dao-tuoi-800x600.jpg',
-  },
-])
+const headers1 = [
+  { title: "Tên sản phẩm", key: "name" },
+  { title: "Mã sản phẩm", key: "id" },
+  { title: "Giá", key: "cost" },
+  { title: "Số lượng còn", key: "quantityLeft" },
+  { title: "Số lượng đã bán", key: "quantitySold" },
+  { title: "", key: "action" },
+];
 
-const statusMap = new Map<string, string>([
-  ['pending', 'Đang chờ xử lý'],
-  ['confirmed', 'Đã xác nhận'],
-  ['completed', 'Hoàn thành'],
-  ['declined', 'Bị từ chối'],
-])
+const requiredValidator = (value: string | null | undefined) => {
+  return !!value || "Trường này là bắt buộc";
+};
 
-const selectedItem = ref<string>('')
+const search = ref("");
 
-const filteredProducts = computed(() => {
-  return productList.value.filter((product: ProductBrief) => {
-    const matchesSearch = product.name.toLowerCase().includes(search.value.toLowerCase())
-    const matchesLowPrice = lowPrice.value === null || lowPrice.value === '' || product.price >= Number(lowPrice.value)
-    const matchesHighPrice = highPrice.value === null || highPrice.value === '' || product.price <= Number(highPrice.value)
+const editDialog = ref(false);
+const deleteDialog = ref(false);
+const newDialog = ref(false);
+const editedItem = ref<any | undefined>();
+const deleteId = ref("");
+const newItem = ref<any | undefined>();
 
-    return matchesSearch && matchesLowPrice && matchesHighPrice
-  })
-})
+const openEditDialog = (item: any) => {
+  editedItem.value = { ...item };
+  editDialog.value = true;
+  console.log(editedItem.value);
+};
+
+const openDeleteDialog = (id: string) => {
+  deleteId.value = id;
+  deleteDialog.value = true;
+};
+
+const openNewDialog = () => {
+  newItem.value = {
+    id: "",
+    name: "",
+    quantityLeft: 0,
+    quantitySold: 0,
+  };
+
+  newDialog.value = true;
+};
+
+const saveNewItem = () => {
+  newItem.value.id = Math.random().toString(36).substr(2, 9);
+  productList.value.unshift(newItem.value);
+  newDialog.value = false;
+};
+
+const closeEdit = () => {
+  editDialog.value = false;
+};
+
+const saveEdit = () => {
+  const index = productList.value.findIndex(
+    (product) => product.id === editedItem.value.id
+  );
+
+  console.log(editedItem.value);
+  // Nếu tìm thấy sản phẩm, cập nhật giá trị
+  if (index !== -1) {
+    productList.value[index] = { ...editedItem.value }; // Cập nhật sản phẩm tại vị trí tìm được
+  }
+
+  // Đóng dialog sau khi lưu
+  editDialog.value = false;
+};
+
+const deleteItem = () => {
+  // Tìm vị trí của sản phẩm trong danh sách dựa trên deleteId
+  const index = productList.value.findIndex(
+    (product) => product.id === deleteId.value
+  );
+
+  // Nếu tìm thấy sản phẩm, xóa sản phẩm khỏi danh sách
+  if (index !== -1) {
+    productList.value.splice(index, 1); // Xóa sản phẩm tại vị trí tìm được
+  }
+
+  // Đặt lại deleteId và đóng dialog xóa
+  deleteId.value = "";
+  deleteDialog.value = false;
+};
 </script>
 
 <template>
-  <VCardText class="pt-0">
-    <VRow style="direction: ltr;">
-      <VCol
-        cols="12"
-        offset-sm="1"
-        md="4"
+  <VCard>
+    <VCardTitle class="text-primary">
+      <VIcon icon="bx-package"></VIcon>
+      Danh sách sản phẩm
+      <VRow style="direction: ltr" class="mt-6">
+        <VCol cols="12" offset-md="0" md="4">
+          <VTextField
+            v-model="search"
+            placeholder="Search ..."
+            append-inner-icon="bx-search"
+            single-line
+            hide-details
+            dense
+            outlined
+          />
+        </VCol>
+      </VRow>
+    </VCardTitle>
+    <VCardText>
+      <VDataTable
+        class="mt-1"
+        :headers="headers1"
+        :items="productList"
+        :items-per-page="20"
+        :search="search"
       >
-        <VTextField
-          v-model="search"
-          placeholder="Search ..."
-          append-inner-icon="bx-search"
-          single-line
-          hide-details
-          dense
-          outlined
-        />
-      </VCol>
-      <VCol
-        cols="auto"
-        md="2"
-        offset-md="2"
+        <template #item.cost="{ item }"> 500,000 VND </template>
+        <template #item.action="{ item }">
+          <IconBtn @click="router.push(`/dropshipper/product-info/${item.id}`)">
+            <VIcon icon="bx-info-circle" />
+          </IconBtn>
 
-        style="flex-grow: 1;"
-      >
-        <VTextField
-          v-model="lowPrice"
-          label="Giá thấp nhất"
-          prefix="VNĐ"
-          type="number"
-        />
-      </vcol>
-      <VCol
-        cols="7"
-        md="2"
-        style="flex-grow: 1;"
-      >
-        <VTextField
-          v-model="highPrice"
-          label="Giá cao nhất"
-          prefix="VNĐ"
-          type="number"
-        />
-      </vcol>
-    </VRow>
-  </VCardText>
-  <VContainer mb-12>
-    <VRow>
-      <VCol
-        sm="12"
-        md="12"
-      >
-        <VRow>
-          <VCol
-            v-for="product in filteredProducts"
-            :key="product.id"
-            sm="6"
-            md="3"
-          >
-            <VCard height="300">
-              <VImg
-                :src="product.imageUrl"
-                height="185"
-                width="100%"
-              />
-              <VCardTitle>{{ product.name }}</VCardTitle>
-              <VCardSubtitle>{{ product.price }}đ</VCardSubtitle>
-              <VCardActions>
-                <VRow
-                  justify="end"
-                  class="mt-1 "
-                >
-                  <VBtn
-                    icon="bx-info-circle"
-                    color="info"
-                    class="me-1"
-                  />
-                  <VBtn
-                    :rounded="0"
-                    color="success"
-                    variant="tonal"
-                    prepend-icon="bx-cart-add"
-                    class="me-1"
-                  >
-                    Thêm vào giỏ
-                  </VBtn>
-                </VRow>
-              </VCardActions>
-            </VCard>
-          </VCol>
-        </VRow>
-      </VCol>
-    </VRow>
-  </VContainer>
+        </template>
+      </VDataTable>
+    </VCardText>
+  </VCard>
+
+
+
+
 </template>
+
+<style scoped>
+.dock-button {
+  position: fixed; /* Cố định vị trí */
+  top: 100px; /* Cách phía trên 20px */
+  right: 50px; /* Cách phía phải 20px */
+  z-index: 1000; /* Đảm bảo nút nằm trên các thành phần khác */
+  transition: all 0.3s ease; /* Hiệu ứng chuyển động mềm */
+}
+
+.dock-button:hover {
+  transform: scale(1.1); /* Phóng to nhẹ khi hover */
+}
+</style>

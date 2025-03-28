@@ -10,131 +10,138 @@ const deleteDialog = ref(false);
 const firstDate = ref<Date | null>(null);
 const lastDate = ref<Date | null>(null);
 
-const supplierList = [
+const warehouseList = [
   {
-    id: "SUP001", // Thêm id
-    name: "Nhà cung cấp 1",
-    joinDate: new Date("2023-01-15"),
-    warehouseCount: 3,
-    productCount: 50,
-    warehouses: [
-      { id: "WH001", name: "Kho A" },
-      { id: "WH002", name: "Kho B" },
-      { id: "WH003", name: "Kho C" },
+    id: "WH001",
+    name: "Kho A",
+    address: "Hà Nội",
+    supplierName: "Nhà cung cấp 1",
+    supplierId: "SUP001",
+    totalQuantity: 500,
+    products: [
+      { id: "PRD001", name: "Táo" },
+      { id: "PRD002", name: "Cam" },
+      { id: "PRD003", name: "Chuối" },
     ],
   },
   {
-    id: "SUP002", // Thêm id
-    name: "Nhà cung cấp 2",
-    joinDate: new Date("2023-02-10"),
-    warehouseCount: 2,
-    productCount: 30,
-    warehouses: [
-      { id: "WH004", name: "Kho D" },
-      { id: "WH005", name: "Kho E" },
+    id: "WH002",
+    name: "Kho B",
+    address: "Hồ Chí Minh",
+    supplierName: "Nhà cung cấp 2",
+    supplierId: "SUP002",
+    totalQuantity: 300,
+    products: [
+      { id: "PRD004", name: "Xoài" },
+      { id: "PRD005", name: "Dưa hấu" },
+      { id: "PRD006", name: "Ổi" },
     ],
   },
   {
-    id: "SUP003", // Thêm id
-    name: "Nhà cung cấp 3",
-    joinDate: new Date("2023-03-05"),
-    warehouseCount: 4,
-    productCount: 70,
-    warehouses: [
-      { id: "WH006", name: "Kho F" },
-      { id: "WH007", name: "Kho G" },
-      { id: "WH008", name: "Kho H" },
-      { id: "WH009", name: "Kho I" },
+    id: "WH003",
+    name: "Kho C",
+    address: "Đà Nẵng",
+    supplierName: "Nhà cung cấp 3",
+    supplierId: "SUP003",
+    totalQuantity: 400,
+    products: [
+      { id: "PRD007", name: "Mận" },
+      { id: "PRD008", name: "Dứa" },
+      { id: "PRD009", name: "Nho" },
     ],
   },
   {
-    id: "SUP004", // Thêm id
-    name: "Nhà cung cấp 4",
-    joinDate: new Date("2023-04-20"),
-    warehouseCount: 5,
-    productCount: 100,
-    warehouses: [
-      { id: "WH010", name: "Kho J" },
-      { id: "WH011", name: "Kho K" },
-      { id: "WH012", name: "Kho L" },
-      { id: "WH013", name: "Kho M" },
-      { id: "WH014", name: "Kho N" },
+    id: "WH004",
+    name: "Kho D",
+    address: "Hải Phòng",
+    supplierName: "Nhà cung cấp 4",
+    supplierId: "SUP004",
+    totalQuantity: 600,
+    products: [
+      { id: "PRD010", name: "Bưởi" },
+      { id: "PRD011", name: "Chanh" },
+      { id: "PRD012", name: "Quýt" },
     ],
   },
   {
-    id: "SUP005", // Thêm id
-    name: "Nhà cung cấp 5",
-    joinDate: new Date("2023-05-15"),
-    warehouseCount: 3,
-    productCount: 40,
-    warehouses: [
-      { id: "WH015", name: "Kho O" },
-      { id: "WH016", name: "Kho P" },
-      { id: "WH017", name: "Kho Q" },
+    id: "WH005",
+    name: "Kho E",
+    address: "Cần Thơ",
+    supplierName: "Nhà cung cấp 5",
+    supplierId: "SUP005",
+    totalQuantity: 200,
+    products: [
+      { id: "PRD013", name: "Dâu tây" },
+      { id: "PRD014", name: "Kiwi" },
+      { id: "PRD015", name: "Lựu" },
     ],
   },
   {
-    id: "SUP006", // Thêm id
-    name: "Nhà cung cấp 6",
-    joinDate: new Date("2023-06-10"),
-    warehouseCount: 2,
-    productCount: 25,
-    warehouses: [
-      { id: "WH018", name: "Kho R" },
-      { id: "WH019", name: "Kho S" },
+    id: "WH006",
+    name: "Kho F",
+    address: "Nha Trang",
+    supplierName: "Nhà cung cấp 6",
+    supplierId: "SUP006",
+    totalQuantity: 350,
+    products: [
+      { id: "PRD016", name: "Đào" },
+      { id: "PRD017", name: "Mít" },
+      { id: "PRD018", name: "Na" },
     ],
   },
   {
-    id: "SUP007", // Thêm id
-    name: "Nhà cung cấp 7",
-    joinDate: new Date("2023-07-05"),
-    warehouseCount: 4,
-    productCount: 60,
-    warehouses: [
-      { id: "WH020", name: "Kho T" },
-      { id: "WH021", name: "Kho U" },
-      { id: "WH022", name: "Kho V" },
-      { id: "WH023", name: "Kho W" },
+    id: "WH007",
+    name: "Kho G",
+    address: "Vũng Tàu",
+    supplierName: "Nhà cung cấp 7",
+    supplierId: "SUP007",
+    totalQuantity: 450,
+    products: [
+      { id: "PRD019", name: "Sầu riêng" },
+      { id: "PRD020", name: "Me" },
+      { id: "PRD021", name: "Chôm chôm" },
     ],
   },
   {
-    id: "SUP008", // Thêm id
-    name: "Nhà cung cấp 8",
-    joinDate: new Date("2023-08-01"),
-    warehouseCount: 3,
-    productCount: 35,
-    warehouses: [
-      { id: "WH024", name: "Kho X" },
-      { id: "WH025", name: "Kho Y" },
-      { id: "WH026", name: "Kho Z" },
+    id: "WH008",
+    name: "Kho H",
+    address: "Quảng Ninh",
+    supplierName: "Nhà cung cấp 8",
+    supplierId: "SUP008",
+    totalQuantity: 500,
+    products: [
+      { id: "PRD022", name: "Vải" },
+      { id: "PRD023", name: "Măng cụt" },
+      { id: "PRD024", name: "Táo xanh" },
     ],
   },
   {
-    id: "SUP009", // Thêm id
-    name: "Nhà cung cấp 9",
-    joinDate: new Date("2023-09-15"),
-    warehouseCount: 2,
-    productCount: 20,
-    warehouses: [
-      { id: "WH027", name: "Kho AA" },
-      { id: "WH028", name: "Kho AB" },
+    id: "WH009",
+    name: "Kho I",
+    address: "Huế",
+    supplierName: "Nhà cung cấp 9",
+    supplierId: "SUP009",
+    totalQuantity: 300,
+    products: [
+      { id: "PRD025", name: "Ổi đỏ" },
+      { id: "PRD026", name: "Cam sành" },
+      { id: "PRD027", name: "Dưa lê" },
     ],
   },
   {
-    id: "SUP010", // Thêm id
-    name: "Nhà cung cấp 10",
-    joinDate: new Date("2023-10-10"),
-    warehouseCount: 5,
-    productCount: 80,
-    warehouses: [
-      { id: "WH029", name: "Kho AC" },
-      { id: "WH030", name: "Kho AD" },
-      { id: "WH031", name: "Kho AE" },
-      { id: "WH032", name: "Kho AF" },
-      { id: "WH033", name: "Kho AG" },
+    id: "WH010",
+    name: "Kho J",
+    address: "Bình Dương",
+    supplierName: "Nhà cung cấp 10",
+    supplierId: "SUP010",
+    totalQuantity: 700,
+    products: [
+      { id: "PRD028", name: "Mít thái" },
+      { id: "PRD029", name: "Dừa" },
+      { id: "PRD030", name: "Chanh dây" },
     ],
   },
-  // ... tiếp tục tạo thêm 20 nhà cung cấp tương tự
+  // ... tiếp tục tạo thêm 20 kho tương tự
 ];
 // // Danh sách đã lọc dựa trên khoảng thời gian
 // const filteredOrderList = computed(() => {
@@ -160,10 +167,11 @@ const supplierList = [
 const headers = [
   { title: "", key: "data-table-expand", sortable: false },
 
-  { title: "Sản phẩm", key: "name" },
-  { title: "Số lượng mặt hàng", key: "productCount" },
-  { title: "Số lượng kho hàng", key: "warehouseCount" },
-  { title: "ngày gia nhập", key: "joinDate" },
+  { title: "Tên kho hàng", key: "name" },
+  { title: "Mã kho hàng", key: "id" },
+  { title: "Địa chỉ", key: "address" },
+  { title: "Nhà cung cấp", key: "supplier" },
+  { title: "Tổng lượng hàng", key: "totalQuantity" },
 
   { title: "Chi tiết", key: "action", sortable: false },
 ];
@@ -194,7 +202,7 @@ const formatDate = (date: Date | null) => {
   <VCardItem class="pb-3">
     <VCardTitle class="text-primary">
       <VIcon icon="bx-buildings"></VIcon>
-      Danh sách Nhà cung cấp
+      Danh sách Nhà kho
     </VCardTitle>
   </VCardItem>
   <div>
@@ -245,7 +253,7 @@ const formatDate = (date: Date | null) => {
     <!-- 👉 Data Table  -->
     <VDataTable
       :headers="headers"
-      :items="supplierList || []"
+      :items="warehouseList || []"
       :search="search"
       :items-per-page="10"
       class="text-no-wrap"
@@ -254,21 +262,19 @@ const formatDate = (date: Date | null) => {
         <tr class="v-data-table__tr">
           <td :colspan="headers.length">
             <div class="ms-10">
-              <div>Danh sách kho</div>
+              <div>Danh sách mặt hàng</div>
               <div class="d-flex space-between gap-2">
                 <div
-                  v-for="warehouse in slotProps.item.warehouses"
-                  :key="warehouse.id"
+                  v-for="product in slotProps.item.products"
+                  :key="product.id"
                   class="mb-1"
                 >
                   <a
                     href="#"
-                    @click.prevent="
-                      router.push(`warehouse-info/${warehouse.id}`)
-                    "
+                    @click.prevent="router.push(`product-info/${product.id}`)"
                     class="text-decoration-none text-primary"
                   >
-                    {{ warehouse.name }}
+                    {{ product.name }}
                   </a>
                 </div>
               </div>
@@ -277,15 +283,15 @@ const formatDate = (date: Date | null) => {
         </tr>
       </template>
 
-      <template #item.joinDate="{ item }">
-        <p class="mi-1">
-          {{ formatDate(item.joinDate) }}
-        </p>
+      <template #item.supplier="{ item }">
+        <RouterLink :to="`supplier-info/${item.supplierId}`">
+          {{ item.supplierName }}
+        </RouterLink>
       </template>
 
       <!-- Delete -->
       <template #item.action="{ item }">
-        <IconBtn @click="router.push(`supplier-info/${item.id}`)">
+        <IconBtn @click="router.push(`warehouse-info/${item.id}`)">
           <VIcon icon="bx-info-circle" />
         </IconBtn>
       </template>

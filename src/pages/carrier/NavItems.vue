@@ -6,12 +6,12 @@ import VerticalNavLink from "@layouts/components/VerticalNavLink.vue";
 <template>
   <div style="width: 100%">
     <VerticalNavLink
-        :item="{
-          title: 'Nhà cung cấp',
-          icon: 'bx-package',
-          to: '/carrier/supplier-list',
-        }"
-      />
+      :item="{
+        title: 'Nhà cung cấp',
+        icon: 'bx-package',
+        to: '/carrier/supplier-list',
+      }"
+    />
     <!-- <VerticalNavGroup
       :item="{
         title: 'Nhà cung cấp',
@@ -81,6 +81,38 @@ import VerticalNavLink from "@layouts/components/VerticalNavLink.vue";
           icon: 'bxs-truck',
         }"
       ></VerticalNavLink>
+    </VerticalNavGroup>
+
+    <VerticalNavGroup
+      :item="{
+        title: 'Chuyển trang giữa Role',
+        icon: 'bx-bar-chart-alt',
+      }"
+    >
+      <VerticalNavLink
+        :item="{
+          title: 'Nhà cung cấp',
+          to: '/supplier',
+        }"
+      />
+      <VerticalNavLink
+        :item="{
+          title: 'Bên vận chuyển',
+          to: '/carrier',
+        }"
+      />
+      <VerticalNavLink
+        :item="{
+          title: 'Cửa hàng',
+          to: '/dropshipper',
+        }"
+      />
+      <VerticalNavLink
+        :item="{
+          title: 'Quản trị viên',
+          to: '/admin',
+        }"
+      />
     </VerticalNavGroup>
   </div>
 </template>
