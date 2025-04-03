@@ -1,6 +1,9 @@
 import { defineComponent } from "@vue/composition-api";
 <script setup lang="ts">
 import { VCardText } from "vuetify/components";
+import { getProductById } from "@/utils/product-api";
+import { defineProps, onMounted, ref } from "vue";
+import { formatDateTime, formatPrice, formatDate } from "@/utils/formatters";
 
 const props = defineProps({
   id: {
@@ -8,10 +11,45 @@ const props = defineProps({
     required: true,
   },
 });
-const productName = ref("Táo - Tên sản phẩm");
-const supplierName = ref("NCC1 - Nhà cung cấp 1");
+const isLoading = ref(true);
+
+const productName = ref("");
 const supplierId = ref<string>("123");
 const totalQuantity = ref<number>(1);
+const updateDate = ref<Date>();
+const price = ref<number>();
+  const note = ref("");
+
+  const product = ref({})
+
+const fetchProductInfo = async (id: string) => {
+  isLoading.value = true;
+  try {
+    const result = await getProductById(id);
+    if (!result.success) {
+      router.push("/error");
+    }
+    const product = result.data;
+
+    // Cập nhật thông tin sản phẩm
+    productName.value = product.name || "Không có tên sản phẩm";
+    supplierId.value = product.supplierId || "";
+    updateDate.value = product.date!;
+    price.value = product.price!;
+    note.value = product.note || "";
+    product.value = product;
+  } catch (error) {
+    console.error("Lỗi khi lấy thông tin sản phẩm:", error);
+  } finally {
+    isLoading.value = false;
+  }
+};
+onMounted(() => {
+  if (props.id) {
+    fetchProductInfo(props.id); // Gọi API khi component được mount
+  }
+});
+
 const productStored = ref([
   { id: "WH001", name: "Kho A", location: "Hà Nội", quantity: 50 },
   { id: "WH002", name: "Kho B", location: "Hồ Chí Minh", quantity: 30 },
@@ -71,21 +109,6 @@ const headers2 = [
   { title: "", key: "action" },
 ];
 
-const formatDate = (date: Date | null) => {
-  if (!date) return "Không có dữ liệu";
-
-  const parsedDate = new Date(date);
-  if (isNaN(parsedDate.getTime())) {
-    return "Ngày không hợp lệ"; // Xử lý khi giá trị không phải là ngày hợp lệ
-  }
-
-  const day = parsedDate.getDate(); // Lấy ngày
-  const month = parsedDate.getMonth() + 1; // Lấy tháng (tháng bắt đầu từ 0 nên cần +1)
-  const year = parsedDate.getFullYear(); // Lấy năm
-
-  return `ngày ${day}/${month}/${year}`; // Trả về chuỗi định dạng "ngày dd/mm/yyyy"
-};
-
 const search = ref("");
 
 const deleteDialog = ref(false);
@@ -115,27 +138,70 @@ const deleteItem = () => {
 
 <template>
   <div>
-    <VCard>
+    <VCard :loading="isLoading">
       <VCardTitle class="d-flex align-center">
         <VIcon icon="bx-package" size="2rem" class="me-2" />
         <span>Thông tin mặt hàng</span>
       </VCardTitle>
 
       <VCardText class="mt-6">
-        <VRow>
+        <VRow align="center">
           <VCol cols="12" sm="3">
             <div class="text-button">Tên sản phẩm :</div>
           </VCol>
-          <VCol cols="12" sm="4">
-            <div class="text-button">{{ productName }}</div>
+
+          <VCol cols="12" sm="6">
+            <MyCopyLabel :loading="isLoading" :value="productName">
+            </MyCopyLabel>
           </VCol>
         </VRow>
-        <VRow>
+
+        <VRow align="center">
           <VCol cols="12" sm="3">
             <div class="text-button">Mã sản phẩm :</div>
           </VCol>
-          <VCol cols="12" sm="4">
-            <div class="text-button">{{ props.id }}</div>
+
+          <VCol cols="12" sm="6">
+            <MyCopyLabel :loading="isLoading" :value="props.id"> </MyCopyLabel>
+          </VCol>
+        </VRow>
+
+        <VRow align="center">
+          <VCol cols="12" sm="3">
+            <div class="text-button">Giá :</div>
+          </VCol>
+
+          <VCol cols="12" sm="6">
+            <MyCopyLabel
+              :loading="isLoading"
+              :value="`${formatPrice(price)}  VNĐ`"
+            >
+            </MyCopyLabel>
+          </VCol>
+        </VRow>
+
+        <VRow align="center">
+          <VCol cols="12" sm="3">
+            <div class="text-button">Ngày cập nhật :</div>
+          </VCol>
+
+          <VCol cols="12" sm="6">
+            <MyCopyLabel
+              :loading="isLoading"
+              :value="formatDateTime(updateDate)"
+            >
+            </MyCopyLabel>
+          </VCol>
+        </VRow>
+
+        <VRow align="center" s>
+          <VCol cols="12" sm="3">
+            <div class="text-button">Ghi chú :</div>
+          </VCol>
+
+          <VCol cols="12" sm="9">
+            <MyCopyLabel class="font-italic" :loading="isLoading" :value="note">
+            </MyCopyLabel>
           </VCol>
         </VRow>
 
@@ -150,7 +216,7 @@ const deleteItem = () => {
 
         <VCard class="mt-6">
           <VCardTitle class="text-h6 font-weight-medium">
-            <VRow style="direction: ltr" class="mt-6 mb-5">
+            <VRow style="direction: ltr;" class="mt-6 mb-5">
               <VCol cols="12" offset-md="0" md="4">
                 <VTextField
                   v-model="search"
@@ -253,5 +319,30 @@ const deleteItem = () => {
       </VCard>
     </VDialog>
   </div>
+
+  <div class="dock-div">
+    <VBtn class="dock-button" color="success">
+      <VIcon icon="bx-edit" class="me-2" /> | Chỉnh sửa
+    </VBtn>
+    <VBtn @click="openNewDialog" class="dock-button ms-2" color="error">
+      <VIcon icon="bx-trash" class="me-2" /> | Xóa
+    </VBtn>
+  </div>
 </template>
 
+<style scoped>
+.dock-div {
+  position: fixed; /* Cố định vị trí */
+  z-index: 1000; /* Đảm bảo nút nằm trên các thành phần khác */
+  inset-block-start: 100px; /* Cách phía trên 20px */
+  inset-inline-end: 50px; /* Cách phía phải 20px */
+}
+
+.dock-button {
+  transition: all 0.3s ease; /* Hiệu ứng chuyển động mềm */
+}
+
+.dock-button:hover {
+  transform: scale(1.1); /* Phóng to nhẹ khi hover */
+}
+</style>

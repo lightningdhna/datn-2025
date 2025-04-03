@@ -13,6 +13,8 @@ declare module 'vue' {
     CardStatisticsWithImages: typeof import('./src/@core/components/cards/CardStatisticsWithImages.vue')['default']
     ErrorHeader: typeof import('./src/components/ErrorHeader.vue')['default']
     MoreBtn: typeof import('./src/@core/components/MoreBtn.vue')['default']
+    MyCopyLabel: typeof import('./src/components/MyCopyLabel.vue')['default']
+    MyCopyTextField: typeof import('./src/components/MyCopyTextField.vue')['default']
     MyDatePicker: typeof import('./src/components/MyDatePicker.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']

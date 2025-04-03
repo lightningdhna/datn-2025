@@ -282,7 +282,7 @@ const formatDate = (date: Date | null) => {
       </VCardItem>
       <div>
         <VCardText class="pt-0">
-          <VRow style="direction: ltr">
+          <VRow style="direction: ltr;">
             <VCol cols="12" offset-md="0" md="4">
               <VTextField
                 v-model="search"
@@ -374,7 +374,7 @@ const formatDate = (date: Date | null) => {
             <IconBtn @click="openEditDialog(item)">
               <VIcon icon="bx-edit" color="success" />
             </IconBtn>
-            <IconBtn @click="openDeleteDialog(item.id)" >
+            <IconBtn @click="openDeleteDialog(item.id)">
               <VIcon color="error" icon="bx-trash" />
             </IconBtn>
           </template>
@@ -444,7 +444,6 @@ const formatDate = (date: Date | null) => {
                 />
               </VCol>
 
-
               <VCol cols="12" sm="6">
                 <VTextField
                   v-model="newItem.address"
@@ -491,28 +490,30 @@ const formatDate = (date: Date | null) => {
         </VCardText>
       </VCard>
     </VDialog>
+  </div>
 
-    <div class="dock-div">
-      <VBtn class="dock-button" color="success" @click="">
-        <VIcon icon="bx-upload" class="me-2" /> | Upload file csv
-      </VBtn>
-      <VBtn @click="openNewDialog" class="dock-button ms-2">
-        <VIcon icon="bxs-file-plus" class="me-2" /> | Thêm kho
-      </VBtn>
-    </div>
+  <div class="dock-div">
+    <VBtn class="dock-button" color="success" @click="">
+      <VIcon icon="bx-upload" class="me-2" /> | Upload file csv
+    </VBtn>
+    <VBtn @click="openNewDialog" class="dock-button ms-2">
+      <VIcon icon="bxs-file-plus" class="me-2" /> | Thêm kho
+    </VBtn>
   </div>
 </template>
 
 <style scoped>
 .dock-div {
   position: fixed; /* Cố định vị trí */
-  top: 100px; /* Cách phía trên 20px */
-  right: 50px; /* Cách phía phải 20px */
   z-index: 1000; /* Đảm bảo nút nằm trên các thành phần khác */
+  inset-block-start: 100px; /* Cách phía trên 20px */
+  inset-inline-end: 50px; /* Cách phía phải 20px */
 }
+
 .dock-button {
   transition: all 0.3s ease; /* Hiệu ứng chuyển động mềm */
 }
+
 .dock-button:hover {
   transform: scale(1.1); /* Phóng to nhẹ khi hover */
 }
