@@ -1,9 +1,20 @@
-import { defineComponent } from "@vue/composition-api";
 <script setup lang="ts">
-import { VCardText } from "vuetify/components";
-import { getProductById } from "@/utils/product-api";
-import { defineProps, onMounted, ref } from "vue";
-import { formatDateTime, formatPrice, formatDate } from "@/utils/formatters";
+import { formatDate, formatDateTime, formatPrice } from "@/utils/formatters";
+import {
+  deleteProduct,
+  getProductById,
+  getProductSummary,
+  updateProduct,
+} from "@/utils/product-api";
+import {
+  getRegistrationsByCurrentSupplier,
+  rejectRegistrationForCurrentSupplier,
+} from "@/utils/registration-api";
+import { requiredValidator } from "@/utils/validator";
+import { getWarehousesByProduct } from "@/utils/warehouse-api";
+import { onMounted, ref } from "vue";
+import { useRouter } from "vue-router";
+import { useToast } from "vue-toastification";
 
 const props = defineProps({
   id: {
@@ -11,216 +22,460 @@ const props = defineProps({
     required: true,
   },
 });
+
+const router = useRouter();
+const toast = useToast();
 const isLoading = ref(true);
 
-const productName = ref("");
-const supplierId = ref<string>("123");
-const totalQuantity = ref<number>(1);
-const updateDate = ref<Date>();
-const price = ref<number>();
-  const note = ref("");
+const product = ref({
+  name: "",
+  price: 0,
+  supplierId: "",
+  date: null,
+  note: "",
+  weight: 0,
+  volume: 0,
+});
 
-  const product = ref({})
+// Product summary data
+const productSummary = ref<any>(null);
+const totalQuantity = ref(0);
 
+// Lists for tables
+const warehouseList = ref<any[]>([]);
+const dropshipperList = ref<any[]>([]);
+
+// Fetch product information and related data
 const fetchProductInfo = async (id: string) => {
   isLoading.value = true;
   try {
-    const result = await getProductById(id);
-    if (!result.success) {
-      router.push("/error");
+    // Get basic product info
+    const productResult = await getProductById(id);
+    if (!productResult.success) {
+      toast.error(`Không thể tải thông tin sản phẩm: ${productResult.message}`);
+      router.push("/supplier/product");
+      return;
     }
-    const product = result.data;
+    product.value = { ...productResult.data };
 
-    // Cập nhật thông tin sản phẩm
-    productName.value = product.name || "Không có tên sản phẩm";
-    supplierId.value = product.supplierId || "";
-    updateDate.value = product.date!;
-    price.value = product.price!;
-    note.value = product.note || "";
-    product.value = product;
+    // Get product summary
+    const summaryResult = await getProductSummary(id);
+    if (summaryResult.success) {
+      productSummary.value = summaryResult.data;
+      totalQuantity.value = productSummary.value.totalStockQuantity || 0;
+    } else {
+      toast.warning("Không thể tải thông tin tổng hợp sản phẩm");
+    }
+
+    // Get warehouses with stock
+    const warehouseResult = await getWarehousesByProduct(id);
+    if (warehouseResult.success) {
+      warehouseList.value = warehouseResult.data.map((warehouse: any) => {
+        // Find quantity from warehouse products
+        const warehouseProduct = warehouse.warehouseProducts?.find(
+          (wp: any) => wp.productId === id
+        );
+        return {
+          id: warehouse.id,
+          name: warehouse.name,
+          location: `X:${warehouse.locationX.toFixed(
+            2
+          )}, Y:${warehouse.locationY.toFixed(2)}`,
+          quantity: warehouseProduct?.quantity || 0,
+        };
+      });
+    } else {
+      toast.warning("Không thể tải danh sách kho hàng");
+    }
+
+    // Get dropshippers selling this product
+    const registrationsResult = await getRegistrationsByCurrentSupplier(1); // Status 1 = approved
+    if (registrationsResult.success) {
+      // Filter registrations for this product
+      const productRegistrations = registrationsResult.data.filter(
+        (reg: any) => reg.productId === id
+      );
+
+      dropshipperList.value = productRegistrations.map((reg: any) => ({
+        dropshipperId: reg.dropshipperId,
+        dropshipperName:
+          reg.dropshipper?.name ||
+          `Dropshipper #${reg.dropshipperId.substr(0, 8)}`,
+        id: reg.dropshipperId,
+        commissionFee: `${reg.commissionFee.toFixed(2)}%`,
+        registrationDate: new Date(reg.createdDate),
+        completedOrders: 0, // Will be enhanced later if needed
+        pendingOrders: 0, // Will be enhanced later if needed
+        quantitySold: 0, // Will be enhanced later if needed
+      }));
+    } else {
+      toast.warning("Không thể tải danh sách dropshipper");
+    }
   } catch (error) {
     console.error("Lỗi khi lấy thông tin sản phẩm:", error);
+    toast.error("Đã xảy ra lỗi khi tải dữ liệu sản phẩm");
   } finally {
     isLoading.value = false;
   }
 };
+
+// Initialize component
 onMounted(() => {
   if (props.id) {
-    fetchProductInfo(props.id); // Gọi API khi component được mount
+    fetchProductInfo(props.id);
   }
 });
 
-const productStored = ref([
-  { id: "WH001", name: "Kho A", location: "Hà Nội", quantity: 50 },
-  { id: "WH002", name: "Kho B", location: "Hồ Chí Minh", quantity: 30 },
-  { id: "WH003", name: "Kho C", location: "Đà Nẵng", quantity: 20 },
-  { id: "WH004", name: "Kho D", location: "Hải Phòng", quantity: 15 },
-  { id: "WH005", name: "Kho E", location: "Cần Thơ", quantity: 25 },
-  { id: "WH006", name: "Kho F", location: "Nha Trang", quantity: 10 },
-  { id: "WH007", name: "Kho G", location: "Vũng Tàu", quantity: 40 },
-  { id: "WH008", name: "Kho H", location: "Quảng Ninh", quantity: 35 },
-  { id: "WH009", name: "Kho I", location: "Huế", quantity: 18 },
-  { id: "WH010", name: "Kho J", location: "Bình Dương", quantity: 22 },
-  { id: "WH011", name: "Kho K", location: "Thanh Hóa", quantity: 28 },
-  { id: "WH012", name: "Kho L", location: "Nghệ An", quantity: 32 },
-  { id: "WH013", name: "Kho M", location: "Bắc Ninh", quantity: 12 },
-  { id: "WH014", name: "Kho N", location: "Lâm Đồng", quantity: 45 },
-  { id: "WH015", name: "Kho O", location: "Bà Rịa - Vũng Tàu", quantity: 50 },
-  { id: "WH016", name: "Kho P", location: "Hậu Giang", quantity: 20 },
-  { id: "WH017", name: "Kho Q", location: "Đồng Nai", quantity: 38 },
-  { id: "WH018", name: "Kho R", location: "Long An", quantity: 25 },
-  { id: "WH019", name: "Kho S", location: "Tiền Giang", quantity: 30 },
-  { id: "WH020", name: "Kho T", location: "Bến Tre", quantity: 15 },
-  { id: "WH021", name: "Kho U", location: "Phú Thọ", quantity: 18 },
-  { id: "WH022", name: "Kho V", location: "Thái Nguyên", quantity: 22 },
-]);
-
+// Table headers
 const headers = [
   { title: "Tên kho", key: "name" },
-  { title: "Địa chỉ kho", key: "location" },
-  { title: "Số lượng còn", key: "quantity" },
-  { title: "Chi tiết", key: "action" },
+  { title: "Vị trí", key: "location" },
+  { title: "Số lượng còn", key: "quantity", align: "end" },
+  { title: "Chi tiết", key: "action", align: "center" },
 ];
-
-const router = useRouter();
-
-const activeTab = ref("one");
-
-const dropshipperList = ref(
-  Array.from({ length: 30 }, (_, index) => ({
-    dropshipperName: `Dropshipper ${index + 1}`, // Tên dropshipper
-    id: `DSH-${Math.floor(1000 + Math.random() * 9000)}`, // Mã ngẫu nhiên
-    commissionFee: `${(Math.random() * 10 + 1).toFixed(2)}%`, // Phí hoa hồng (1% - 10%)
-    registrationDate: new Date(Date.now() - Math.random() * 10000000000), // Ngày đăng ký ngẫu nhiên
-    completedOrders: Math.floor(Math.random() * 500), // Số đơn hoàn thành (0-500)
-    pendingOrders: Math.floor(Math.random() * 100), // Số đơn đợi (0-100)
-    quantitySold: Math.floor(Math.random() * 1000), // Số lượng đã bán (0-1000)
-  }))
-);
 
 const headers2 = [
-  { key: "dropshipperName", align: " d-none" },
-  { title: "Cửa hàng", key: "dropshipper" },
-  { title: "Phí hoa hồng", key: "commissionFee" },
+  { title: "Cửa hàng", key: "dropshipperName" },
+  { title: "Phí hoa hồng", key: "commissionFee", align: "end" },
   { title: "Ngày đăng ký", key: "registrationDate" },
-  { title: "Số đơn hoàn thành", key: "completedOrders" },
-  { title: "Số đơn đợi", key: "pendingOrders" },
-  { title: "Số lượng đã bán", key: "quantitySold" },
-  { title: "", key: "action" },
+  { title: "Thao tác", key: "action", align: "center" },
 ];
 
+// Tab management
+const activeTab = ref("one");
 const search = ref("");
 
+// Delete dropshipper registration
 const deleteDialog = ref(false);
 const deleteId = ref("");
+const deleteDropshipperName = ref("");
 
-const openDeleteDialog = (id: string) => {
+const openDeleteDialog = (id: string, name: string) => {
   deleteId.value = id;
+  deleteDropshipperName.value = name;
   deleteDialog.value = true;
 };
 
-const deleteItem = () => {
-  // Tìm vị trí của sản phẩm trong danh sách dựa trên deleteId
-  const index = dropshipperList.value.findIndex(
-    (dropshipper) => dropshipper.id === deleteId.value
-  );
+const deleteItem = async () => {
+  try {
+    isLoading.value = true;
+    const result = await rejectRegistrationForCurrentSupplier(
+      props.id,
+      deleteId.value
+    );
 
-  // Nếu tìm thấy sản phẩm, xóa sản phẩm khỏi danh sách
-  if (index !== -1) {
-    dropshipperList.value.splice(index, 1); // Xóa sản phẩm tại vị trí tìm được
+    if (result.success) {
+      // Remove from local list
+      const index = dropshipperList.value.findIndex(
+        (dropshipper) => dropshipper.id === deleteId.value
+      );
+      if (index !== -1) {
+        dropshipperList.value.splice(index, 1);
+      }
+      toast.success(`Đã hủy đăng ký cho ${deleteDropshipperName.value}`);
+    } else {
+      toast.error(`Lỗi khi hủy đăng ký: ${result.message}`);
+    }
+  } catch (error) {
+    console.error("Error removing registration:", error);
+    toast.error("Đã xảy ra lỗi khi hủy đăng ký");
+  } finally {
+    isLoading.value = false;
+    deleteDialog.value = false;
+    deleteId.value = "";
+    deleteDropshipperName.value = "";
   }
+};
 
-  // Đặt lại deleteId và đóng dialog xóa
-  deleteId.value = "";
-  deleteDialog.value = false;
+// Edit/Delete product
+const editDialogMain = ref(false);
+const deleteDialogMain = ref(false);
+const pickedItemMain = ref<any | undefined>();
+
+const openEditDialogMain = () => {
+  pickedItemMain.value = { ...product.value };
+  editDialogMain.value = true;
+};
+
+const openDeleteDialogMain = () => {
+  pickedItemMain.value = { ...product.value };
+  deleteDialogMain.value = true;
+};
+
+const validateProductInfo = (product: any) => {
+  return product.name && product.price > 0;
+};
+
+// Product refresh
+const refreshProductData = async () => {
+  if (props.id) {
+    await fetchProductInfo(props.id);
+    toast.success("Đã làm mới dữ liệu sản phẩm");
+  }
 };
 </script>
 
 <template>
+  <ItemManagementDialog
+    :deleteApi="deleteProduct"
+    :updateApi="updateProduct"
+    v-model:deleteDialog="deleteDialogMain"
+    v-model:editDialog="editDialogMain"
+    :item="pickedItemMain"
+    :validateInfo="validateProductInfo"
+    v-model:current-item="product"
+    @item-updated="refreshProductData"
+  >
+    <template #edit-form>
+      <VRow>
+        <VCol cols="12" sm="6">
+          <VTextField
+            v-model="pickedItemMain.name"
+            label="Tên"
+            :rules="[requiredValidator]"
+          />
+        </VCol>
+
+        <VCol cols="12" sm="6">
+          <VTextField
+            v-model="pickedItemMain.id"
+            label="Mã"
+            :rules="[requiredValidator]"
+            readonly
+          />
+        </VCol>
+
+        <VCol cols="12" sm="6">
+          <VTextField
+            v-model.number="pickedItemMain.price"
+            label="Giá"
+            :rules="[requiredValidator]"
+            suffix=" VNĐ"
+          />
+        </VCol>
+
+        <VCol cols="12" sm="6">
+          <my-date-picker
+            v-model="pickedItemMain.date"
+            label="Ngày cập nhật"
+            :rules="[requiredValidator]"
+            disabled
+          />
+        </VCol>
+
+        <VCol cols="12" sm="6">
+          <VTextField
+            v-model.number="pickedItemMain.weight"
+            label="Trọng lượng"
+            suffix=" kg"
+            min="0"
+          />
+        </VCol>
+
+        <VCol cols="12" sm="6">
+          <VTextField
+            v-model.number="pickedItemMain.volume"
+            label="Thể tích"
+            suffix=" m³"
+            min="0"
+          />
+        </VCol>
+
+        <VCol cols="12" sm="12">
+          <VTextarea v-model="pickedItemMain.note" label="Ghi chú" />
+        </VCol>
+      </VRow>
+    </template>
+  </ItemManagementDialog>
+
   <div>
     <VCard :loading="isLoading">
       <VCardTitle class="d-flex align-center">
         <VIcon icon="bx-package" size="2rem" class="me-2" />
         <span>Thông tin mặt hàng</span>
+        <VSpacer />
+        <VBtn
+          v-if="!isLoading"
+          color="primary"
+          variant="text"
+          @click="refreshProductData"
+          class="ms-2"
+        >
+          <VIcon icon="bx-refresh" class="me-2" /> Làm mới
+        </VBtn>
       </VCardTitle>
 
       <VCardText class="mt-6">
-        <VRow align="center">
-          <VCol cols="12" sm="3">
-            <div class="text-button">Tên sản phẩm :</div>
-          </VCol>
-
-          <VCol cols="12" sm="6">
-            <MyCopyLabel :loading="isLoading" :value="productName">
-            </MyCopyLabel>
-          </VCol>
-        </VRow>
-
-        <VRow align="center">
-          <VCol cols="12" sm="3">
-            <div class="text-button">Mã sản phẩm :</div>
-          </VCol>
-
-          <VCol cols="12" sm="6">
-            <MyCopyLabel :loading="isLoading" :value="props.id"> </MyCopyLabel>
-          </VCol>
-        </VRow>
-
-        <VRow align="center">
-          <VCol cols="12" sm="3">
-            <div class="text-button">Giá :</div>
-          </VCol>
-
-          <VCol cols="12" sm="6">
-            <MyCopyLabel
-              :loading="isLoading"
-              :value="`${formatPrice(price)}  VNĐ`"
-            >
-            </MyCopyLabel>
-          </VCol>
-        </VRow>
-
-        <VRow align="center">
-          <VCol cols="12" sm="3">
-            <div class="text-button">Ngày cập nhật :</div>
-          </VCol>
-
-          <VCol cols="12" sm="6">
-            <MyCopyLabel
-              :loading="isLoading"
-              :value="formatDateTime(updateDate)"
-            >
-            </MyCopyLabel>
-          </VCol>
-        </VRow>
-
-        <VRow align="center" s>
-          <VCol cols="12" sm="3">
-            <div class="text-button">Ghi chú :</div>
-          </VCol>
-
-          <VCol cols="12" sm="9">
-            <MyCopyLabel class="font-italic" :loading="isLoading" :value="note">
-            </MyCopyLabel>
-          </VCol>
-        </VRow>
-
+        <!-- Basic product info -->
         <VRow>
-          <VCol cols="12" sm="3">
-            <div class="text-button">Số lượng hàng còn :</div>
+          <VCol cols="12" md="8">
+            <!-- Left column: Basic product info -->
+            <VRow align="center">
+              <VCol cols="12" sm="3">
+                <div class="text-button">Tên sản phẩm:</div>
+              </VCol>
+              <VCol cols="12" sm="9">
+                <MyCopyLabel :loading="isLoading" :value="product.name" />
+              </VCol>
+            </VRow>
+
+            <VRow align="center">
+              <VCol cols="12" sm="3">
+                <div class="text-button">Mã sản phẩm:</div>
+              </VCol>
+              <VCol cols="12" sm="9">
+                <MyCopyLabel :loading="isLoading" :value="props.id" />
+              </VCol>
+            </VRow>
+
+            <VRow align="center">
+              <VCol cols="12" sm="3">
+                <div class="text-button">Giá:</div>
+              </VCol>
+              <VCol cols="12" sm="9">
+                <MyCopyLabel
+                  :loading="isLoading"
+                  :value="`${formatPrice(product.price)} VNĐ`"
+                />
+              </VCol>
+            </VRow>
+
+            <VRow align="center">
+              <VCol cols="12" sm="3">
+                <div class="text-button">Ngày cập nhật:</div>
+              </VCol>
+              <VCol cols="12" sm="9">
+                <MyCopyLabel
+                  :loading="isLoading"
+                  :value="formatDateTime(product.date)"
+                />
+              </VCol>
+            </VRow>
+
+            <VRow
+              align="center"
+              v-if="product.weight > 0 || product.volume > 0"
+            >
+              <VCol cols="12" sm="3">
+                <div class="text-button">Kích thước:</div>
+              </VCol>
+              <VCol cols="12" sm="9">
+                <MyCopyLabel
+                  :loading="isLoading"
+                  :value="`${product.weight} kg, ${product.volume} m³`"
+                />
+              </VCol>
+            </VRow>
+
+            <VRow align="center" v-if="product.note">
+              <VCol cols="12" sm="3">
+                <div class="text-button">Ghi chú:</div>
+              </VCol>
+              <VCol cols="12" sm="9">
+                <MyCopyLabel
+                  class="font-italic"
+                  :loading="isLoading"
+                  :value="product.note"
+                />
+              </VCol>
+            </VRow>
           </VCol>
-          <VCol cols="12" sm="4">
-            <div class="text-button">{{ totalQuantity }}</div>
+
+          <!-- Right column: Summary stats -->
+          <VCol
+            cols="12"
+            md="4"
+            v-if="productSummary"
+            class="d-flex flex-column"
+          >
+            <!-- Summary Stats Cards -->
+            <VCard variant="outlined" class="mb-3">
+              <VCardText>
+                <div class="d-flex align-center justify-space-between mb-1">
+                  <div class="text-overline">Tổng số hàng còn</div>
+                  <VChip
+                    :color="totalQuantity > 10 ? 'success' : 'warning'"
+                    size="small"
+                    class="text-white"
+                  >
+                    {{ totalQuantity }}
+                  </VChip>
+                </div>
+                <div class="d-flex align-center justify-space-between mb-1">
+                  <div class="text-overline">Số kho còn hàng</div>
+                  <VChip color="info" size="small">
+                    {{ productSummary.warehouseCount }}
+                  </VChip>
+                </div>
+                <div class="d-flex align-center justify-space-between mb-1">
+                  <div class="text-overline">Dropshipper đăng ký</div>
+                  <VChip
+                    :color="
+                      productSummary.dropshipperCount > 0
+                        ? 'primary'
+                        : 'secondary'
+                    "
+                    size="small"
+                  >
+                    {{ productSummary.dropshipperCount }}
+                  </VChip>
+                </div>
+              </VCardText>
+            </VCard>
+
+            <VCard variant="outlined">
+              <VCardText>
+                <div class="d-flex align-center justify-space-between mb-1">
+                  <div class="text-overline">Bán trong tháng</div>
+                  <VChip
+                    :color="
+                      productSummary.monthlySoldQuantity > 0
+                        ? 'success'
+                        : 'secondary'
+                    "
+                    size="small"
+                  >
+                    {{ productSummary.monthlySoldQuantity }}
+                  </VChip>
+                </div>
+                <div class="d-flex align-center justify-space-between mb-1">
+                  <div class="text-overline">Đơn tháng này</div>
+                  <VChip
+                    :color="
+                      productSummary.monthlyCompletedOrderCount > 0
+                        ? 'success'
+                        : 'secondary'
+                    "
+                    size="small"
+                  >
+                    {{ productSummary.monthlyCompletedOrderCount }}
+                  </VChip>
+                </div>
+                <div class="d-flex align-center justify-space-between mb-1">
+                  <div class="text-overline">Tổng đã bán</div>
+                  <VChip color="success" size="small">
+                    {{ productSummary.totalSoldQuantity }}
+                  </VChip>
+                </div>
+                <div class="d-flex align-center justify-space-between">
+                  <div class="text-overline">Tổng đơn đã xong</div>
+                  <VChip color="success" size="small">
+                    {{ productSummary.completedOrderCount }}
+                  </VChip>
+                </div>
+              </VCardText>
+            </VCard>
           </VCol>
         </VRow>
 
+        <!-- Tabs for warehouses and dropshippers -->
         <VCard class="mt-6">
           <VCardTitle class="text-h6 font-weight-medium">
-            <VRow style="direction: ltr;" class="mt-6 mb-5">
+            <VRow class="mt-6 mb-5">
               <VCol cols="12" offset-md="0" md="4">
                 <VTextField
                   v-model="search"
-                  placeholder="Search ..."
+                  placeholder="Tìm kiếm..."
                   append-inner-icon="bx-search"
                   single-line
                   hide-details
@@ -232,14 +487,20 @@ const deleteItem = () => {
             <VTabs v-model="activeTab">
               <VTab value="one">
                 <div class="d-flex align-center">
-                  <VIcon icon="bx-package" size="1.8rem" class="me-2" />
-                  <span>Danh sách kho còn hàng</span>
+                  <VIcon icon="bx-building-house" size="1.8rem" class="me-2" />
+                  <span
+                    >Danh sách kho còn hàng ({{ warehouseList.length }})</span
+                  >
                 </div>
               </VTab>
               <VTab value="two">
                 <div class="d-flex align-center">
-                  <VIcon icon="bx-buildings" size="1.8rem" class="me-2" />
-                  <span>Danh sách dropshipper bán</span>
+                  <VIcon icon="bx-store" size="1.8rem" class="me-2" />
+                  <span
+                    >Danh sách dropshipper bán ({{
+                      dropshipperList.length
+                    }})</span
+                  >
                 </div>
               </VTab>
             </VTabs>
@@ -251,16 +512,37 @@ const deleteItem = () => {
                   <VCardText>
                     <VDataTable
                       :headers="headers"
-                      :items="productStored"
+                      :items="warehouseList"
                       :items-per-page="20"
                       :search="search"
+                      no-data-text="Không có kho nào còn hàng cho sản phẩm này"
                     >
+                      <template #item.quantity="{ item }">
+                        <span
+                          :class="
+                            item.quantity < 10 ? 'text-error' : 'text-success'
+                          "
+                        >
+                          {{ item.quantity }}
+                        </span>
+                      </template>
+
                       <template #item.action="{ item }">
                         <IconBtn
                           @click="router.push(`../warehouse-info/${item.id}`)"
                         >
+                          <VTooltip activator="parent" location="top"
+                            >Xem kho</VTooltip
+                          >
                           <VIcon icon="bx-info-circle" />
                         </IconBtn>
+                      </template>
+
+                      <template #no-data>
+                        <div class="text-center pa-4 text-medium-emphasis">
+                          <VIcon icon="bx-package" size="32" class="mb-2" />
+                          <p>Không có kho nào còn hàng cho sản phẩm này</p>
+                        </div>
                       </template>
                     </VDataTable>
                   </VCardText>
@@ -275,21 +557,40 @@ const deleteItem = () => {
                       :headers="headers2"
                       :items-per-page="20"
                       :search="search"
+                      no-data-text="Không có dropshipper nào đăng ký bán sản phẩm này"
                     >
-                      <template #item.dropshipper="{ item }">
+                      <template #item.dropshipperName="{ item }">
                         <RouterLink
                           :to="`/supplier/dropshipper-info/${item.id}`"
-                          >{{ item.dropshipperName }}</RouterLink
                         >
-                      </template>
-                      <template #item.action="{ item }">
-                        <IconBtn @click="openDeleteDialog(item.id)">
-                          <VIcon icon="bx-trash" color="error" />
-                        </IconBtn>
+                          {{ item.dropshipperName }}
+                        </RouterLink>
                       </template>
 
                       <template #item.registrationDate="{ item }">
                         {{ formatDate(item.registrationDate) }}
+                      </template>
+
+                      <template #item.action="{ item }">
+                        <IconBtn
+                          @click="
+                            openDeleteDialog(item.id, item.dropshipperName)
+                          "
+                        >
+                          <VTooltip activator="parent" location="top"
+                            >Hủy đăng ký</VTooltip
+                          >
+                          <VIcon icon="bx-trash" color="error" />
+                        </IconBtn>
+                      </template>
+
+                      <template #no-data>
+                        <div class="text-center pa-4 text-medium-emphasis">
+                          <VIcon icon="bx-store" size="32" class="mb-2" />
+                          <p>
+                            Không có dropshipper nào đăng ký bán sản phẩm này
+                          </p>
+                        </div>
                       </template>
                     </VDataTable>
                   </VCardText>
@@ -300,10 +601,24 @@ const deleteItem = () => {
         </VCard>
       </VCardText>
     </VCard>
+
+    <!-- Delete dropshipper registration dialog -->
     <VDialog v-model="deleteDialog" max-width="500px">
       <VCard title="Bạn có muốn hủy đăng kí của cửa hàng này không?">
         <VCardText>
-          <div class="d-flex justify-center gap-4">
+          <p>
+            Xác nhận hủy đăng ký bán sản phẩm
+            <strong>{{ product.name }}</strong> của cửa hàng
+            <strong>{{ deleteDropshipperName }}</strong
+            >?
+          </p>
+          <p class="text-caption text-error">
+            Lưu ý: Thao tác này sẽ hủy đăng ký và dropshipper không thể tiếp tục
+            bán sản phẩm của bạn.
+          </p>
+        </VCardText>
+        <VCardActions>
+          <div class="d-flex justify-center gap-4 w-100">
             <VBtn
               variant="outlined"
               color="secondary"
@@ -315,16 +630,17 @@ const deleteItem = () => {
               Xác nhận hủy
             </VBtn>
           </div>
-        </VCardText>
+        </VCardActions>
       </VCard>
     </VDialog>
   </div>
 
+  <!-- Floating action buttons -->
   <div class="dock-div">
-    <VBtn class="dock-button" color="success">
+    <VBtn @click="openEditDialogMain" class="dock-button" color="success">
       <VIcon icon="bx-edit" class="me-2" /> | Chỉnh sửa
     </VBtn>
-    <VBtn @click="openNewDialog" class="dock-button ms-2" color="error">
+    <VBtn @click="openDeleteDialogMain" class="dock-button ms-2" color="error">
       <VIcon icon="bx-trash" class="me-2" /> | Xóa
     </VBtn>
   </div>
@@ -332,17 +648,22 @@ const deleteItem = () => {
 
 <style scoped>
 .dock-div {
-  position: fixed; /* Cố định vị trí */
-  z-index: 1000; /* Đảm bảo nút nằm trên các thành phần khác */
-  inset-block-start: 100px; /* Cách phía trên 20px */
-  inset-inline-end: 50px; /* Cách phía phải 20px */
+  position: fixed;
+  z-index: 1000;
+  inset-block-start: 100px;
+  inset-inline-end: 50px;
 }
 
 .dock-button {
-  transition: all 0.3s ease; /* Hiệu ứng chuyển động mềm */
+  transition: all 0.3s ease;
 }
 
 .dock-button:hover {
-  transform: scale(1.1); /* Phóng to nhẹ khi hover */
+  transform: scale(1.1);
+}
+
+.text-button {
+  font-weight: 500;
+  min-block-size: 24px;
 }
 </style>

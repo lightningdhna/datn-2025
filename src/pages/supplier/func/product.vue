@@ -1,31 +1,65 @@
 <script setup lang="ts">
-import { useRouter } from "vue-router";
-const router = useRouter();
-import { ref, onMounted } from "vue";
-import { getAllProducts } from "@/utils/product-api";
-import { formatDate, formatDateTime, formatPrice } from "@/utils/formatters";
+import { formatDate, formatPrice } from "@/utils/formatters";
 import {
-  updateProduct,
   createProduct,
   deleteProduct,
+  getAllProductsBySupplier,
+  getProductSummary,
+  updateProduct,
 } from "@/utils/product-api";
+import { requiredValidator } from "@/utils/validator";
+import { onMounted, ref } from "vue";
+import { useRouter } from "vue-router";
 import { useToast } from "vue-toastification";
-import { debounce, debounceAsync, throttleAsync } from "@/utils/common";
+const router = useRouter();
 const toast = useToast();
 
 const isLoading = ref(true);
 const productList = ref<any[]>([]); // Khởi tạo productList là một mảng rỗng
+
 const fetchProductList = async () => {
   isLoading.value = true;
   try {
-    const result = await getAllProducts();
+    const result = await getAllProductsBySupplier();
     if (result.success) {
-      productList.value = result.data; // Gán dữ liệu từ API vào productList
+      // First get the basic product information
+      const products = result.data;
+
+      // Then enhance each product with summary information
+      const productsWithSummary = await Promise.all(
+        products.map(async (product) => {
+          try {
+            const summaryResult = await getProductSummary(product.id);
+            if (summaryResult.success) {
+              return {
+                ...product,
+                totalStockQuantity: summaryResult.data.totalStockQuantity || 0,
+                dropshipperCount: summaryResult.data.dropshipperCount || 0,
+                monthlySoldQuantity:
+                  summaryResult.data.monthlySoldQuantity || 0,
+                monthlyCompletedOrderCount:
+                  summaryResult.data.monthlyCompletedOrderCount || 0,
+              };
+            }
+            return product; // Return original product if summary fetch fails
+          } catch (err) {
+            console.error(
+              `Error fetching summary for product ${product.id}:`,
+              err
+            );
+            return product; // Return original product on error
+          }
+        })
+      );
+
+      productList.value = productsWithSummary;
     } else {
       console.error("Lỗi khi lấy danh sách sản phẩm:", result.error);
+      toast.error(`Không thể lấy danh sách sản phẩm: ${result.message}`);
     }
   } catch (error) {
     console.error("Lỗi khi gọi API:", error);
+    toast.error("Đã xảy ra lỗi khi tải danh sách sản phẩm");
   } finally {
     isLoading.value = false;
   }
@@ -34,167 +68,218 @@ const fetchProductList = async () => {
 onMounted(() => {
   fetchProductList();
 });
+
+// Updated headers to include the new columns
 const headers = [
   { title: "", key: "data-table-expand" },
   { title: "Tên sản phẩm", key: "name" },
   { title: "Mã sản phẩm", key: "id" },
   { title: "Giá (VNĐ)", key: "price" },
   { title: "Ngày cập nhật", key: "date", sortable: true },
-
-  { title: "Số lượng còn", key: "quantityLeft", maxWidth: "100px" },
-  { title: "Số lượng đã bán", key: "quantitySold", maxWidth: "100px" },
-  { title: "", key: "action" , minWidth:"150px"},
+  { title: "Tổng số hàng còn", key: "totalStockQuantity", align: "center" },
+  { title: "Số DS đăng ký", key: "dropshipperCount", align: "center" },
+  { title: "SL bán trong tháng", key: "monthlySoldQuantity", align: "center" },
+  {
+    title: "Số đơn hoàn thành",
+    key: "monthlyCompletedOrderCount",
+    align: "center",
+  },
+  { title: "", key: "action", minWidth: "150px" },
 ];
-
-const requiredValidator = (value: string | null | undefined) => {
-  return !!value || "Trường này là bắt buộc";
-};
 
 const search = ref("");
 
 const editDialog = ref(false);
 const deleteDialog = ref(false);
 const newDialog = ref(false);
-const editedItem = ref<any | undefined>();
-const deleteId = ref("");
-const newItem = ref<any | undefined>();
-const isSavingEdit = ref(false);
-const isSavingClickable = ref(true);
-const isSavingDelete = ref(false);
 
-const delay = 2500;
+const pickedItem = ref<any | undefined>();
 
 const openEditDialog = (item: any) => {
-  editedItem.value = { ...item };
+  pickedItem.value = { ...item };
   editDialog.value = true;
-  console.log(editedItem.value);
 };
 
-const openDeleteDialog = (id: string) => {
-  deleteId.value = id;
+const openDeleteDialog = (item: any) => {
+  pickedItem.value = { ...item };
   deleteDialog.value = true;
 };
 
 const openNewDialog = () => {
-  newItem.value = {
-    id: "",
-    name: "",
-    quantityLeft: 0,
-    quantitySold: 0,
+  pickedItem.value = {
+    name: "", // Tên sản phẩm
+    price: 0, // Giá sản phẩm
+    date: new Date(), // Ngày cập nhật
+    note: "", // Ghi chú
   };
 
   newDialog.value = true;
 };
 
-const saveNewItem = () => {
-  newItem.value.id = Math.random().toString(36).substr(2, 9);
-  productList.value.unshift(newItem.value);
-  newDialog.value = false;
+const validateProductInfo = (product: any) => {
+  return product.name && product.price > 0;
 };
 
-const closeEdit = () => {
-  editDialog.value = false;
-};
-
-const saveEdit = async () => {
-  isSavingClickable.value = false;
-  const isChanged =
-    JSON.stringify(editedItem.value) !==
-    JSON.stringify(
-      productList.value.find(
-        (product: any) => product.id === editedItem.value.id
-      )
+const updateList = async (updatedList: any) => {
+  // After updating the basic list, we need to fetch summary data again
+  isLoading.value = true;
+  try {
+    // Enhance each product with summary information
+    const productsWithSummary = await Promise.all(
+      updatedList.map(async (product) => {
+        try {
+          const summaryResult = await getProductSummary(product.id);
+          if (summaryResult.success) {
+            return {
+              ...product,
+              totalStockQuantity: summaryResult.data.totalStockQuantity || 0,
+              dropshipperCount: summaryResult.data.dropshipperCount || 0,
+              monthlySoldQuantity: summaryResult.data.monthlySoldQuantity || 0,
+              monthlyCompletedOrderCount:
+                summaryResult.data.monthlyCompletedOrderCount || 0,
+            };
+          }
+          return product;
+        } catch (err) {
+          console.error(
+            `Error fetching summary for product ${product.id}:`,
+            err
+          );
+          return product;
+        }
+      })
     );
 
-  if (!isChanged) {
-    toast.warning("Không có thay đổi nào được thực hiện!");
-
-    setTimeout(() => {
-      isSavingClickable.value = true;
-    }, delay); // Đặt lại isSavingClickable sau 1 giây
-    return;
-  }
-
-  isSavingEdit.value = true;
-
-  try {
-    // Gọi API để cập nhật sản phẩm
-    const result = await updateProduct(editedItem.value.id, editedItem.value);
-
-    console.log("giá của sản phẩm cập nhât: ", editedItem.value.price);
-
-    if (result.success) {
-      // Tìm vị trí của sản phẩm trong danh sách
-      const index = productList.value.findIndex(
-        (product: any) => product.id === editedItem.value.id
-      );
-
-      // Nếu tìm thấy sản phẩm, cập nhật giá trị trong danh sách
-      editedItem.value.date = new Date();
-      if (index !== -1) {
-        productList.value[index] = { ...editedItem.value };
-      }
-
-      // Hiển thị thông báo thành công (nếu cần)
-      toast.success("Cập nhật sản phẩm thành công!");
-      setTimeout(() => {
-        editDialog.value = false;
-      }, 750); // Đặt lại isSavingClickable sau 1 giây
-    } else {
-      console.error("Lỗi khi cập nhật sản phẩm:", result.error);
-      toast.error(`Cập nhật sản phẩm thất bại!\n${result.message || ""}`);
-    }
+    productList.value = productsWithSummary;
   } catch (error) {
-    console.error("Lỗi khi gọi API cập nhật sản phẩm:", error);
-    alert("Đã xảy ra lỗi khi cập nhật sản phẩm!");
+    console.error("Lỗi khi cập nhật danh sách sản phẩm:", error);
+    toast.error("Đã xảy ra lỗi khi cập nhật danh sách sản phẩm");
   } finally {
-    // Đóng dialog và tắt trạng thái loading
-    isSavingEdit.value = false;
-    setTimeout(() => {
-      isSavingClickable.value = true;
-    }, delay); // Đặt lại isSavingClickable sau 1 giây
+    isLoading.value = false;
   }
 };
-const throttledSaveEdit = throttleAsync(saveEdit, delay);
 
-const deleteItem = async () => {
-  isSavingDelete.value = true;
+// Function to refresh a single product's data
+const refreshProductData = async (productId) => {
   try {
-    // Gửi yêu cầu xóa đến API
-    const result = await deleteProduct(deleteId.value); // Giả sử bạn có hàm deleteProduct trong API
-
-    if (result.success) {
-      // Tìm vị trí của sản phẩm trong danh sách dựa trên deleteId
-      const index = productList.value.findIndex(
-        (product) => product.id === deleteId.value
-      );
-
-      // Nếu tìm thấy sản phẩm, xóa sản phẩm khỏi danh sách
+    const summaryResult = await getProductSummary(productId);
+    if (summaryResult.success) {
+      // Find and update the product in the list
+      const index = productList.value.findIndex((p) => p.id === productId);
       if (index !== -1) {
-        productList.value.splice(index, 1); // Xóa sản phẩm tại vị trí tìm được
+        productList.value[index] = {
+          ...productList.value[index],
+          totalStockQuantity: summaryResult.data.totalStockQuantity || 0,
+          dropshipperCount: summaryResult.data.dropshipperCount || 0,
+          monthlySoldQuantity: summaryResult.data.monthlySoldQuantity || 0,
+          monthlyCompletedOrderCount:
+            summaryResult.data.monthlyCompletedOrderCount || 0,
+        };
       }
-
-      // Hiển thị thông báo thành công
-      toast.success("Xóa sản phẩm thành công!");
-    } else {
-      // Hiển thị thông báo lỗi nếu API trả về lỗi
-      toast.error(
-        `Xóa sản phẩm thất bại: ${result.message || "Lỗi không xác định"}`
-      );
     }
-  } catch (error) {
-    console.error("Lỗi khi gọi API xóa sản phẩm:", error);
-    toast.error("Đã xảy ra lỗi khi xóa sản phẩm!");
-  } finally {
-    // Đặt lại deleteId và đóng dialog xóa
-    deleteId.value = "";
-    deleteDialog.value = false;
-    isSavingDelete.value = false;
+  } catch (err) {
+    console.error(`Error refreshing product ${productId}:`, err);
   }
 };
 </script>
 
 <template>
+  <ManagementDialog
+    :itemList="productList"
+    @updateList="updateList"
+    :deleteApi="deleteProduct"
+    :createApi="createProduct"
+    :updateApi="updateProduct"
+    v-model:deleteDialog="deleteDialog"
+    v-model:newDialog="newDialog"
+    v-model:editDialog="editDialog"
+    :item="pickedItem"
+    :validateInfo="validateProductInfo"
+  >
+    <template #new-form>
+      <VRow>
+        <!-- fullName -->
+        <VCol cols="12" sm="6">
+          <VTextField
+            v-model="pickedItem.name"
+            label="Tên"
+            :rules="[requiredValidator]"
+          />
+        </VCol>
+
+        <!-- fullName -->
+        <VCol cols="12" sm="6">
+          <!-- <VTextField
+                v-model="newItem.id"
+                label="Mã"
+                :rules="[requiredValidator]"
+                readonly
+              /> -->
+        </VCol>
+        <VCol cols="12" sm="6">
+          <VTextField
+            v-model.number="pickedItem.price"
+            label="Giá"
+            :rules="[requiredValidator]"
+            suffix=" VNĐ"
+          />
+        </VCol>
+        <VCol cols="12" sm="6">
+          <my-date-picker
+            v-model="pickedItem.date"
+            label="Ngày cập nhật"
+            :rules="[requiredValidator]"
+            disabled
+          />
+        </VCol>
+        <VCol cols="12" sm="12">
+          <VTextarea v-model="pickedItem.note" label="Ghi chú" />
+        </VCol>
+      </VRow>
+    </template>
+    <template #edit-form>
+      <VRow>
+        <!-- fullName -->
+        <VCol cols="12" sm="6">
+          <VTextField
+            v-model="pickedItem.name"
+            label="Tên"
+            :rules="[requiredValidator]"
+          />
+        </VCol>
+
+        <!-- fullName -->
+        <VCol cols="12" sm="6">
+          <VTextField
+            v-model="pickedItem.id"
+            label="Mã"
+            :rules="[requiredValidator]"
+            readonly
+          />
+        </VCol>
+        <VCol cols="12" sm="6">
+          <VTextField
+            v-model.number="pickedItem.price"
+            label="Giá"
+            :rules="[requiredValidator]"
+            suffix=" VNĐ"
+          />
+        </VCol>
+        <VCol cols="12" sm="6">
+          <my-date-picker
+            v-model="pickedItem.date"
+            label="Ngày cập nhật"
+            :rules="[requiredValidator]"
+            disabled
+          />
+        </VCol>
+        <VCol cols="12" sm="12">
+          <VTextarea v-model="pickedItem.note" label="Ghi chú" />
+        </VCol>
+      </VRow>
+    </template>
+  </ManagementDialog>
+
   <VCard>
     <VCardTitle class="text-primary">
       <VIcon icon="bx-package"></VIcon>
@@ -223,182 +308,117 @@ const deleteItem = async () => {
         :loading="isLoading"
         :sort-by="[{ key: 'date', order: 'desc' }]"
         expand-on-click
+        density="compact"
       >
         <template #expanded-row="slotProps">
           <tr class="v-data-table__tr">
             <td></td>
             <td :colspan="headers.length - 2">
-              <div style="white-space: pre-wrap;" class="mt-4 mb-4">
-                {{ slotProps.item.note }}
+              <div class="px-2 py-3">
+                <VRow>
+                  <VCol cols="12" md="6">
+                    <div class="d-flex align-center mb-2">
+                      <strong class="me-2">Ghi chú:</strong>
+                      <span style="white-space: pre-wrap;">{{
+                        slotProps.item.note || "Không có ghi chú"
+                      }}</span>
+                    </div>
+                  </VCol>
+                  <VCol cols="12" md="6">
+                    <div class="d-flex align-center mb-2">
+                      <VBtn
+                        size="small"
+                        color="primary"
+                        variant="tonal"
+                        :loading="isLoading"
+                        @click="refreshProductData(slotProps.item.id)"
+                      >
+                        <VIcon size="small" icon="bx-refresh" class="me-1" />
+                        Làm mới dữ liệu
+                      </VBtn>
+                    </div>
+                  </VCol>
+                </VRow>
               </div>
             </td>
           </tr>
         </template>
-        <template #item.price="{ item }"
-          >{{ formatPrice(item.price) }}
+
+        <template #item.price="{ item }">
+          {{ formatPrice(item.price) }}
         </template>
-        <template #item.date="{ item }">{{ formatDate(item.date) }} </template>
+        <template #item.date="{ item }">{{ formatDate(item.date) }}</template>
+
+        <!-- Templates for the new columns -->
+        <template #item.totalStockQuantity="{ item }">
+          <VChip
+            :color="item.totalStockQuantity > 10 ? 'success' : 'warning'"
+            size="small"
+            class="text-white"
+          >
+            {{ item.totalStockQuantity }}
+          </VChip>
+        </template>
+
+        <template #item.dropshipperCount="{ item }">
+          <VChip
+            :color="item.dropshipperCount > 0 ? 'info' : 'secondary'"
+            size="small"
+          >
+            {{ item.dropshipperCount }}
+          </VChip>
+        </template>
+
+        <template #item.monthlySoldQuantity="{ item }">
+          <VChip
+            :color="item.monthlySoldQuantity > 0 ? 'success' : 'secondary'"
+            size="small"
+          >
+            {{ item.monthlySoldQuantity }}
+          </VChip>
+        </template>
+
+        <template #item.monthlyCompletedOrderCount="{ item }">
+          <VChip
+            :color="
+              item.monthlyCompletedOrderCount > 0 ? 'success' : 'secondary'
+            "
+            size="small"
+          >
+            {{ item.monthlyCompletedOrderCount }}
+          </VChip>
+        </template>
+
         <template #item.action="{ item }">
           <IconBtn @click="router.push(`/supplier/product-info/${item.id}`)">
+            <VTooltip activator="parent" location="top">Chi tiết</VTooltip>
             <VIcon icon="bx-info-circle" />
           </IconBtn>
           <IconBtn @click="openEditDialog(item)">
+            <VTooltip activator="parent" location="top">Sửa</VTooltip>
             <VIcon color="success" icon="bx-edit" />
           </IconBtn>
-          <IconBtn @click="openDeleteDialog(item.id)">
+          <IconBtn @click="openDeleteDialog(item)">
+            <VTooltip activator="parent" location="top">Xóa</VTooltip>
             <VIcon color="error" icon="bx-trash" />
           </IconBtn>
+        </template>
+
+        <template #no-data>
+          <div class="text-center pa-3">
+            <p>Không có sản phẩm nào</p>
+          </div>
         </template>
       </VDataTable>
     </VCardText>
   </VCard>
 
-  <VDialog v-model="editDialog" max-width="600px">
-    <VCard :loading="isSavingEdit" title="Edit Item">
-      <VCardText>
-        <VFrom @submit.prevent>
-          <VRow>
-            <!-- fullName -->
-            <VCol cols="12" sm="6">
-              <VTextField
-                v-model="editedItem.name"
-                label="Tên"
-                :rules="[requiredValidator]"
-              />
-            </VCol>
-
-            <!-- fullName -->
-            <VCol cols="12" sm="6">
-              <VTextField
-                v-model="editedItem.id"
-                label="Mã"
-                :rules="[requiredValidator]"
-                readonly
-              />
-            </VCol>
-            <VCol cols="12" sm="6">
-              <VTextField
-                v-model.number="editedItem.price"
-                label="Giá"
-                :rules="[requiredValidator]"
-                suffix=" VNĐ"
-              />
-            </VCol>
-            <VCol cols="12" sm="6">
-              <my-date-picker
-                v-model="editedItem.date"
-                label="Ngày cập nhật"
-                :rules="[requiredValidator]"
-                suffix=" VNĐ"
-                disabled
-              />
-            </VCol>
-            <VCol cols="12" sm="12">
-              <VTextarea v-model="editedItem.note" label="Ghi chú" />
-            </VCol>
-          </VRow>
-        </VFrom>
-      </VCardText>
-
-      <VCardText>
-        <div class="self-align-end d-flex gap-4 justify-end">
-          <VBtn
-            :disabled="isSavingEdit"
-            color="gray"
-            variant="outlined"
-            @click="closeEdit"
-          >
-            <VIcon icon="bx-x"></VIcon> | Hủy bỏ
-          </VBtn>
-          <VBtn
-            :disabled="!isSavingClickable"
-            :loading="isSavingEdit"
-            color="success"
-            variant="elevated"
-            @click="throttledSaveEdit"
-            ><VIcon icon="bx-save"></VIcon>| Lưu lại
-          </VBtn>
-        </div>
-      </VCardText>
-    </VCard>
-  </VDialog>
-
-  <VDialog v-model="newDialog" max-width="600px">
-    <VCard title="Edit Item">
-      <VCardText>
-        <VFrom @submit.prevent>
-          <VRow>
-            <!-- fullName -->
-            <VCol cols="12" sm="6">
-              <VTextField
-                v-model="newItem.name"
-                label="Tên"
-                :rules="[requiredValidator]"
-              />
-            </VCol>
-            <VCol cols="12" sm="6">
-              <VTextField
-                label="Giá"
-                suffix=",000 VNĐ"
-                :rules="[requiredValidator]"
-              />
-            </VCol>
-          </VRow>
-        </VFrom>
-      </VCardText>
-
-      <VCardText>
-        <div class="self-align-end d-flex gap-4 justify-end">
-          <VBtn
-            color="gray"
-            variant="outlined"
-            @click="() => (newDialog = false)"
-          >
-            <VIcon icon="bx-x"></VIcon> | Hủy bỏ
-          </VBtn>
-          <VBtn
-            :loading="true"
-            color="success"
-            variant="elevated"
-            @click="saveNewItem"
-            ><VIcon icon="bx-save"></VIcon>| Thêm mới
-          </VBtn>
-        </div>
-      </VCardText>
-    </VCard>
-  </VDialog>
-
-  <VDialog v-model="deleteDialog" max-width="500px">
-    <VCard title="Bạn có muốn xóa thông tin sản phẩm này không?">
-      <VCardText>
-        <div class="d-flex justify-center gap-4">
-          <VBtn
-            variant="outlined"
-            color="secondary"
-            @click="() => (deleteDialog = false)"
-            :disabled="isSavingDelete"
-          >
-            Bỏ qua
-          </VBtn>
-          <VBtn
-            :loading="isSavingDelete"
-            color="error"
-            variant="outlined"
-            @click="deleteItem"
-          >
-            Xác nhận xóa
-          </VBtn>
-        </div>
-      </VCardText>
-    </VCard>
-  </VDialog>
-
   <div class="dock-div">
-    <VBtn class="dock-button" color="success">
+    <VBtn class="dock-button" color="success" disabled>
       <VIcon icon="bx-upload" class="me-2" /> | Upload file csv
     </VBtn>
     <VBtn @click="openNewDialog" class="dock-button ms-2">
-      <VIcon icon="bxs-file-plus" class="me-2" /> | Thêm kho
+      <VIcon icon="bxs-file-plus" class="me-2" /> | Thêm sản phẩm
     </VBtn>
   </div>
 </template>
