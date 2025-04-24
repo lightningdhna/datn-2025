@@ -1,745 +1,552 @@
 <script setup lang="ts">
-import MyDatePicker from "@/components/MyDatePicker.vue";
-import type { CustomerOrder } from "@/models/order";
+import { formatDate, formatPrice } from "@/utils/formatters";
+import { getDropshipperId } from "@/utils/local-storage";
+import { getRegistrationsByCurrentDropshipper } from "@/utils/registration-api";
 import { requiredValidator } from "@/utils/validator";
+import { computed, onMounted, ref } from "vue";
+import { useRouter } from "vue-router";
+import { useToast } from "vue-toastification";
 
 const router = useRouter();
-const activeTab = ref("1");
-
+const toast = useToast();
+const isLoading = ref(true);
 const search = ref("");
+const activeTab = ref('all');
 
-const firstDate = ref<Date | null>(null);
-const lastDate = ref<Date | null>(null);
+// Data
+const orders = ref<any[]>([]);
+const registeredProducts = ref<any[]>([]);
 
-const resolveStatusColor = (status: string) => {
-  if (status === "confirmed") return "info";
-  if (status === "completed") return "success";
-  if (status === "declined") return "error";
-  if (status === "pending") return "warning";
-};
-const resolveStatusText = (status: string) => {
-  if (status === "confirmed") return "Đang giao";
-  if (status === "completed") return "Đã hoàn thành";
-  if (status === "declined") return "Đã hủy";
-  if (status === "pending") return "Đợi duyệt";
-};
+// Dialogs
+const newOrderDialog = ref(false);
+const confirmCancelDialog = ref(false);
+const selectedOrder = ref<any>(null);
 
-const orderList = ref([
-  {
-    id: "ORD001", // Thêm id
-    productName: "Táo",
-    productId: "PRD001",
-    supplierName: "Nhà cung cấp 1",
-    supplierId: "SUP001",
-    orderDate: new Date("2023-01-15"),
-    address: "Hà Nội",
-    status: "pending", // Đang chờ xử lý
-  },
-  {
-    id: "ORD002", // Thêm id
-    productName: "Cam",
-    productId: "PRD002",
-    supplierName: "Nhà cung cấp 2",
-    supplierId: "SUP002",
-    orderDate: new Date("2023-02-10"),
-    address: "Hồ Chí Minh",
-    status: "completed", // Hoàn thành
-  },
-  {
-    id: "ORD003", // Thêm id
-    productName: "Chuối",
-    productId: "PRD003",
-    supplierName: "Nhà cung cấp 3",
-    supplierId: "SUP003",
-    orderDate: new Date("2023-03-05"),
-    address: "Đà Nẵng",
-    status: "confirmed", // Đã xác nhận
-  },
-  {
-    id: "ORD004", // Thêm id
-    productName: "Xoài",
-    productId: "PRD004",
-    supplierName: "Nhà cung cấp 4",
-    supplierId: "SUP004",
-    orderDate: new Date("2023-04-20"),
-    address: "Hải Phòng",
-    status: "declined", // Bị từ chối
-  },
-  {
-    id: "ORD005", // Thêm id
-    productName: "Dưa hấu",
-    productId: "PRD005",
-    supplierName: "Nhà cung cấp 5",
-    supplierId: "SUP005",
-    orderDate: new Date("2023-05-15"),
-    address: "Cần Thơ",
-    status: "pending",
-  },
-  {
-    id: "ORD006", // Thêm id
-    productName: "Ổi",
-    productId: "PRD006",
-    supplierName: "Nhà cung cấp 6",
-    supplierId: "SUP006",
-    orderDate: new Date("2023-06-10"),
-    address: "Nha Trang",
-    status: "completed",
-  },
-  {
-    id: "ORD007", // Thêm id
-    productName: "Mận",
-    productId: "PRD007",
-    supplierName: "Nhà cung cấp 7",
-    supplierId: "SUP007",
-    orderDate: new Date("2023-07-05"),
-    address: "Vũng Tàu",
-    status: "confirmed",
-  },
-  {
-    id: "ORD008", // Thêm id
-    productName: "Dứa",
-    productId: "PRD008",
-    supplierName: "Nhà cung cấp 8",
-    supplierId: "SUP008",
-    orderDate: new Date("2023-08-01"),
-    address: "Quảng Ninh",
-    status: "pending",
-  },
-  {
-    id: "ORD009", // Thêm id
-    productName: "Nho",
-    productId: "PRD009",
-    supplierName: "Nhà cung cấp 9",
-    supplierId: "SUP009",
-    orderDate: new Date("2023-09-15"),
-    address: "Huế",
-    status: "completed",
-  },
-  {
-    id: "ORD010", // Thêm id
-    productName: "Bưởi",
-    productId: "PRD010",
-    supplierName: "Nhà cung cấp 10",
-    supplierId: "SUP010",
-    orderDate: new Date("2023-10-10"),
-    address: "Bình Dương",
-    status: "declined",
-  },
-  {
-    id: "ORD011", // Thêm id
-    productName: "Chanh",
-    productId: "PRD011",
-    supplierName: "Nhà cung cấp 1",
-    supplierId: "SUP001",
-    orderDate: new Date("2023-11-01"),
-    address: "Thanh Hóa",
-    status: "pending",
-  },
-  {
-    id: "ORD012", // Thêm id
-    productName: "Quýt",
-    productId: "PRD012",
-    supplierName: "Nhà cung cấp 2",
-    supplierId: "SUP002",
-    orderDate: new Date("2023-12-05"),
-    address: "Nghệ An",
-    status: "completed",
-  },
-  {
-    id: "ORD013", // Thêm id
-    productName: "Dâu tây",
-    productId: "PRD013",
-    supplierName: "Nhà cung cấp 3",
-    supplierId: "SUP003",
-    orderDate: new Date("2024-01-10"),
-    address: "Thái Nguyên",
-    status: "confirmed",
-  },
-  {
-    id: "ORD014", // Thêm id
-    productName: "Kiwi",
-    productId: "PRD014",
-    supplierName: "Nhà cung cấp 4",
-    supplierId: "SUP004",
-    orderDate: new Date("2024-02-15"),
-    address: "Hậu Giang",
-    status: "pending",
-  },
-  {
-    id: "ORD015", // Thêm id
-    productName: "Lựu",
-    productId: "PRD015",
-    supplierName: "Nhà cung cấp 5",
-    supplierId: "SUP005",
-    orderDate: new Date("2024-03-20"),
-    address: "Đồng Nai",
-    status: "completed",
-  },
-  {
-    id: "ORD016", // Thêm id
-    productName: "Đào",
-    productId: "PRD016",
-    supplierName: "Nhà cung cấp 6",
-    supplierId: "SUP006",
-    orderDate: new Date("2024-04-25"),
-    address: "Long An",
-    status: "confirmed",
-  },
-  {
-    id: "ORD017", // Thêm id
-    productName: "Mít",
-    productId: "PRD017",
-    supplierName: "Nhà cung cấp 7",
-    supplierId: "SUP007",
-    orderDate: new Date("2024-05-30"),
-    address: "Tiền Giang",
-    status: "declined",
-  },
-  {
-    id: "ORD018", // Thêm id
-    productName: "Na",
-    productId: "PRD018",
-    supplierName: "Nhà cung cấp 8",
-    supplierId: "SUP008",
-    orderDate: new Date("2024-06-05"),
-    address: "Bến Tre",
-    status: "pending",
-  },
-  {
-    id: "ORD019", // Thêm id
-    productName: "Sầu riêng",
-    productId: "PRD019",
-    supplierName: "Nhà cung cấp 9",
-    supplierId: "SUP009",
-    orderDate: new Date("2024-07-10"),
-    address: "Phú Thọ",
-    status: "completed",
-  },
-  {
-    id: "ORD020", // Thêm id
-    productName: "Me",
-    productId: "PRD020",
-    supplierName: "Nhà cung cấp 10",
-    supplierId: "SUP010",
-    orderDate: new Date("2024-08-15"),
-    address: "Quảng Nam",
-    status: "confirmed",
-  },
-  // ... tiếp tục tạo thêm 10 phần tử tương tự
-]);
+// New order form
+const newOrder = ref({
+  productId: "",
+  quantity: 1,
+  locationX: 0,
+  locationY: 0,
+  note: "",
+});
 
-// // Danh sách đã lọc dựa trên khoảng thời gian
-// const filteredOrderList = computed(() => {
-//   // Nếu cả firstDate và lastDate đều không có giá trị, trả về toàn bộ danh sách
-//   if (!firstDate.value && !lastDate.value) return orderList.value;
+// Fetch orders
+const fetchOrders = async () => {
+  isLoading.value = true;
+  try {
+    // Get dropshipper ID
+    const dropshipperId = getDropshipperId();
+    if (!dropshipperId) {
+      toast.error("Không tìm thấy ID dropshipper");
+      return;
+    }
 
-//   return orderList.value.filter((order: CustomerOrder) => {
-//     const createdDate = new Date(order.createdDate).getTime();
+    // Fetch orders from API
+    // For demonstration, I'm simulating API call with a timeout
+    // In a real application, replace this with actual API call
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // Sample data - replace with actual API call
+    orders.value = [
+      {
+        id: "ORD001",
+        productId: "PRD001",
+        productName: "Apple iPhone 13",
+        productPrice: 20000000,
+        quantity: 1,
+        totalPrice: 20000000,
+        status: 0, // 0: pending, 1: processing, 2: shipping, 3: completed
+        createdDate: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2), // 2 days ago
+        locationX: 10.762622,
+        locationY: 106.660172,
+        note: "Delivery to front door",
+      },
+      {
+        id: "ORD002",
+        productId: "PRD002",
+        productName: "Samsung Galaxy S22",
+        productPrice: 18000000,
+        quantity: 2,
+        totalPrice: 36000000,
+        status: 1, // 0: pending, 1: processing, 2: shipping, 3: completed
+        createdDate: new Date(Date.now() - 1000 * 60 * 60 * 24 * 5), // 5 days ago
+        locationX: 10.780389,
+        locationY: 106.701447,
+        note: "",
+      },
+      {
+        id: "ORD003",
+        productId: "PRD003",
+        productName: "MacBook Pro 14-inch",
+        productPrice: 45000000,
+        quantity: 1,
+        totalPrice: 45000000,
+        status: 2, // 0: pending, 1: processing, 2: shipping, 3: completed
+        createdDate: new Date(Date.now() - 1000 * 60 * 60 * 24 * 7), // 7 days ago
+        locationX: 10.803748,
+        locationY: 106.633361,
+        note: "Call before delivery",
+      },
+      {
+        id: "ORD004",
+        productId: "PRD004",
+        productName: "iPad Air",
+        productPrice: 16000000,
+        quantity: 3,
+        totalPrice: 48000000,
+        status: 3, // 0: pending, 1: processing, 2: shipping, 3: completed
+        createdDate: new Date(Date.now() - 1000 * 60 * 60 * 24 * 10), // 10 days ago
+        locationX: 10.823099,
+        locationY: 106.629179,
+        note: "",
+      },
+    ];
 
-//     // Nếu không có firstDate hoặc lastDate, bỏ qua so sánh tương ứng
-//     const startDate = firstDate.value
-//       ? new Date(firstDate.value).getTime()
-//       : Number.NEGATIVE_INFINITY;
-//     const endDate = lastDate.value
-//       ? new Date(lastDate.value).getTime()
-//       : Number.POSITIVE_INFINITY;
-
-//     return createdDate >= startDate && createdDate <= endDate;
-//   });
-// });
-
-// headers
-const headers = [
-  { title: "Sản phẩm", key: "productName" },
-  { title: "Nhà cung cấp", key: "supplierName" },
-  { title: "Ngày đặt", key: "orderDate" },
-  { title: "Địa chỉ", key: "address" },
-  { title: "Số lượng", key: "quantity" },
-
-  { title: "Trạng thái", key: "status" },
-
-  { title: "Chi tiết", key: "action", sortable: false },
-];
-
-const headers2 = [
-  { title: "Sản phẩm", key: "productName" },
-  { title: "Nhà cung cấp", key: "supplierName" },
-  { title: "Ngày đặt", key: "orderDate" },
-  { title: "Địa chỉ", key: "address" },
-  { title: "Số lượng", key: "quantity" },
-
-  { title: "Chi tiết", key: "action", sortable: false },
-];
-
-const formatDate = (date: Date | null) => {
-  if (!date) return "Không có dữ liệu";
-
-  const parsedDate = new Date(date);
-  if (isNaN(parsedDate.getTime())) {
-    return "Ngày không hợp lệ"; // Xử lý khi giá trị không phải là ngày hợp lệ
+    // Fetch registered products for creating new orders
+    const registrationsResult = await getRegistrationsByCurrentDropshipper(1); // Only approved registrations
+    if (registrationsResult.success && registrationsResult.data) {
+      registeredProducts.value = registrationsResult.data.map((reg: any) => ({
+        id: reg.productId,
+        name: reg.product?.name || "Unknown Product",
+        price: reg.product?.price || 0,
+        weight: reg.product?.weight || 0,
+        volume: reg.product?.volume || 0,
+      }));
+    } else {
+      console.error("Error fetching registered products:", registrationsResult.error || "Unknown error");
+    }
+  } catch (error) {
+    console.error("Error fetching orders:", error);
+    toast.error("Đã xảy ra lỗi khi tải danh sách đơn hàng");
+  } finally {
+    isLoading.value = false;
   }
-
-  const hours = parsedDate.getHours(); // Lấy giờ
-  const day = parsedDate.getDate(); // Lấy ngày
-  const month = parsedDate.getMonth() + 1; // Lấy tháng (0-based nên cần +1)
-  const year = parsedDate.getFullYear(); // Lấy năm
-
-  return `${hours}h ngày ${day}/${month}/${year}`;
 };
 
-const pendingOrders = computed(() => {
-  return orderList.value.filter((order) => order.status === "pending");
-});
-const confirmedOrders = computed(() => {
-  return orderList.value.filter((order) => order.status === "confirmed");
-});
-const completedOrder = computed(() => {
-  return orderList.value.filter((order) => order.status === "completed");
+// Initialize
+onMounted(() => {
+  fetchOrders();
 });
 
-const editDialog = ref(false);
-const deleteDialog = ref(false);
-const newDialog = ref(false);
-const editedItem = ref<any | undefined>();
-const deleteId = ref("");
-const newItem = ref<any | undefined>();
+// Table headers
+const orderHeaders = [
+  { title: "Mã đơn hàng", key: "id" },
+  { title: "Sản phẩm", key: "productName" },
+  { title: "Số lượng", key: "quantity", align: "end" },
+  { title: "Tổng tiền", key: "totalPrice", align: "end" },
+  { title: "Ngày tạo", key: "createdDate" },
+  { title: "Trạng thái", key: "status", align: "center" },
+  { title: "Thao tác", key: "actions", align: "center" },
+] as const;
 
-const openEditDialog = (item: any) => {
-  editedItem.value = { ...item };
-  editDialog.value = true;
-  console.log(editedItem.value);
-};
-
-const openDeleteDialog = (id: string) => {
-  deleteId.value = id;
-  deleteDialog.value = true;
-};
-
-const openNewDialog = () => {
-  console.log("....");
-  newItem.value = {
-    id: "", // Thêm id
-
-    productName: "",
-    productId: "",
-    supplierName: "Nhà cung cấp 10",
-    supplierId: "SUP010",
-    orderDate: new Date(),
-    address: "",
-    quantity: 0,
-    status: "pending",
+// Filter orders based on active tab
+const filteredOrders = computed(() => {
+  if (activeTab.value === 'all') {
+    return orders.value;
+  }
+  const statusMap: Record<string, number> = {
+    pending: 0,
+    processing: 1,
+    shipping: 2,
+    completed: 3,
   };
-  newDialog.value = true;
+  return orders.value.filter(order => order.status === statusMap[activeTab.value]);
+});
+
+// Get status text and color
+const getStatusInfo = (status: number) => {
+  switch (status) {
+    case 0:
+      return { text: "Chờ xử lý", color: "warning" };
+    case 1:
+      return { text: "Đang xử lý", color: "info" };
+    case 2:
+      return { text: "Đang vận chuyển", color: "primary" };
+    case 3:
+      return { text: "Hoàn thành", color: "success" };
+    default:
+      return { text: "Không xác định", color: "error" };
+  }
 };
 
-const saveNewItem = () => {
-  newItem.value.id = Math.random().toString(36).substr(2, 9);
-  orderList.value.unshift(newItem.value);
-  newDialog.value = false;
+// Navigation functions
+const viewOrderDetails = (orderId: string) => {
+  router.push(`/dropshipper/order-info/${orderId}`);
 };
 
-const closeEdit = () => {
-  editDialog.value = false;
+const viewProductDetails = (productId: string) => {
+  router.push(`/dropshipper/product-info/${productId}`);
 };
 
-const saveEdit = () => {
-  const index = orderList.value.findIndex(
-    (order) => order.id === editedItem.value.id
-  );
+// Open cancel order dialog
+const openCancelDialog = (order: any) => {
+  selectedOrder.value = order;
+  confirmCancelDialog.value = true;
+};
 
-  console.log(editedItem.value);
-  // Nếu tìm thấy sản phẩm, cập nhật giá trị
-  if (index !== -1) {
-    orderList.value[index] = { ...editedItem.value }; // Cập nhật sản phẩm tại vị trí tìm được
+// Create new order
+const createOrder = () => {
+  // Validate form
+  if (!newOrder.value.productId || newOrder.value.quantity < 1) {
+    toast.error("Vui lòng điền đầy đủ thông tin đơn hàng");
+    return;
   }
 
-  // Đóng dialog sau khi lưu
-  editDialog.value = false;
-};
-
-const deleteItem = () => {
-  // Tìm vị trí của sản phẩm trong danh sách dựa trên deleteId
-  const index = orderList.value.findIndex(
-    (order) => order.id === deleteId.value
+  // In a real app, this would call the API to create the order
+  const selectedProduct = registeredProducts.value.find(
+    p => p.id === newOrder.value.productId
   );
 
-  // Nếu tìm thấy sản phẩm, xóa sản phẩm khỏi danh sách
-  if (index !== -1) {
-    orderList.value.splice(index, 1); // Xóa sản phẩm tại vị trí tìm được
+  if (!selectedProduct) {
+    toast.error("Sản phẩm không hợp lệ");
+    return;
   }
 
-  // Đặt lại deleteId và đóng dialog xóa
-  deleteId.value = "";
-  deleteDialog.value = false;
+  const newOrderData = {
+    id: `ORD${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`,
+    productId: newOrder.value.productId,
+    productName: selectedProduct.name,
+    productPrice: selectedProduct.price,
+    quantity: newOrder.value.quantity,
+    totalPrice: selectedProduct.price * newOrder.value.quantity,
+    status: 0, // pending
+    createdDate: new Date(),
+    locationX: newOrder.value.locationX,
+    locationY: newOrder.value.locationY,
+    note: newOrder.value.note,
+  };
+
+  // Add to orders list
+  orders.value.unshift(newOrderData);
+  toast.success("Đã tạo đơn hàng mới thành công");
+  newOrderDialog.value = false;
+
+  // Reset form
+  newOrder.value = {
+    productId: "",
+    quantity: 1,
+    locationX: 0,
+    locationY: 0,
+    note: "",
+  };
 };
+
+// Cancel order
+const cancelOrder = () => {
+  if (!selectedOrder.value) return;
+
+  // In a real app, this would call the API to cancel the order
+  const index = orders.value.findIndex(o => o.id === selectedOrder.value.id);
+  if (index !== -1) {
+    orders.value.splice(index, 1);
+    toast.success("Đã hủy đơn hàng thành công");
+  }
+  confirmCancelDialog.value = false;
+  selectedOrder.value = null;
+};
+
+// Refresh data
+const refreshData = async () => {
+  await fetchOrders();
+  toast.success("Đã làm mới danh sách đơn hàng");
+};
+
+// Selected product details for new order
+const selectedProductDetails = computed(() => {
+  if (!newOrder.value.productId) return null;
+  return registeredProducts.value.find(p => p.id === newOrder.value.productId);
+});
+
+// Computed total price for new order
+const computedTotalPrice = computed(() => {
+  if (!selectedProductDetails.value) return 0;
+  return selectedProductDetails.value.price * newOrder.value.quantity;
+});
 </script>
 
 <template>
-  <div>
+  <section>
     <VCard>
-      <VCardTitle class="text-primary">
-        <VIcon icon="bx-receipt"></VIcon>
-        Danh sách đơn hàng
-        <VRow style="direction: ltr" class="mt-6">
-          <VCol cols="12" offset-md="0" md="4">
+      <!-- HEADER -->
+      <VCardItem>
+        <VCardTitle class="text-h5 d-flex align-center">
+          <VIcon icon="bx-receipt" class="me-2" />
+          Quản lý đơn hàng
+          <VSpacer />
+          <VBtn
+            icon
+            size="small"
+            variant="text"
+            color="default"
+            @click="refreshData"
+          >
+            <VIcon icon="bx-refresh" />
+          </VBtn>
+        </VCardTitle>
+      </VCardItem>
+
+      <VDivider />
+
+      <VCardText>
+        <VRow>
+          <VCol cols="12" md="6">
             <VTextField
               v-model="search"
-              placeholder="Search ..."
-              append-inner-icon="bx-search"
+              density="compact"
+              label="Tìm kiếm đơn hàng"
+              prepend-inner-icon="bx-search"
+              clearable
               single-line
               hide-details
-              dense
-              outlined
             />
           </VCol>
+          <VCol cols="12" md="6" class="d-flex justify-end">
+            <VBtn
+              color="primary"
+              prepend-icon="bx-plus"
+              @click="newOrderDialog = true"
+              :disabled="registeredProducts.length === 0"
+            >
+              Tạo đơn hàng mới
+            </VBtn>
+          </VCol>
         </VRow>
-      </VCardTitle>
-      <VTabs v-model="activeTab" class="mt-6">
-        <VTab value="1">
-          <div class="d-flex align-center">
-            <span>Tất cả</span>
-          </div>
-        </VTab>
-        <VTab value="2">
-          <div class="d-flex align-center text-success">
-            <span>Đã hoàn thành</span>
-          </div>
-        </VTab>
-        <VTab value="3">
-          <div class="d-flex align-center text-info">
-            <span>Đang giao</span>
-          </div>
-        </VTab>
-        <VTab value="4">
-          <div class="d-flex align-center text-warning">
-            <span>Đợi duyệt</span>
-          </div>
-        </VTab>
-      </VTabs>
-      <VCardText>
-        <VTabsWindow v-model="activeTab">
-          <VTabsWindowItem value="1">
-            <VDataTable
-              :items="orderList"
-              :headers="headers"
-              class="text-button"
-              :items-per-page="20"
-              :search="search"
+
+        <!-- Tabs -->
+        <VTabs v-model="activeTab" class="mt-4">
+          <VTab value="all" class="text-capitalize">
+            Tất cả
+          </VTab>
+          <VTab value="pending" class="text-capitalize">
+            Chờ xử lý
+          </VTab>
+          <VTab value="processing" class="text-capitalize">
+            Đang xử lý
+          </VTab>
+          <VTab value="shipping" class="text-capitalize">
+            Đang vận chuyển
+          </VTab>
+          <VTab value="completed" class="text-capitalize">
+            Hoàn thành
+          </VTab>
+        </VTabs>
+
+        <!-- Orders Table -->
+        <VDataTable
+          :headers="orderHeaders"
+          :items="filteredOrders"
+          :search="search"
+          :loading="isLoading"
+          class="mt-5"
+          hover
+          item-value="id"
+        >
+          <template #item.totalPrice="{ item }">
+            {{ formatPrice(item.totalPrice) }}
+          </template>
+
+          <template #item.createdDate="{ item }">
+            {{ formatDate(item.createdDate) }}
+          </template>
+
+          <template #item.status="{ item }">
+            <VChip
+              :color="getStatusInfo(item.status).color"
+              size="small"
             >
-              <template #item.productName="{ item }">
-                <RouterLink :to="`product-info/${item.productId}`">
-                  {{ item.productName }}
-                </RouterLink>
-              </template>
+              {{ getStatusInfo(item.status).text }}
+            </VChip>
+          </template>
 
-              <template #item.supplierName="{ item }">
-                <RouterLink :to="`product-info/${item.supplierId}`">
-                  {{ item.supplierName }}
-                </RouterLink>
-              </template>
+          <template #item.actions="{ item }">
+            <div class="d-flex gap-1 justify-center">
+              <VBtn
+                icon
+                size="small"
+                color="primary"
+                variant="text"
+                @click="viewOrderDetails(item.id)"
+              >
+                <VIcon icon="bx-info-circle" />
+                <VTooltip activator="parent" location="top">
+                  Xem chi tiết đơn hàng
+                </VTooltip>
+              </VBtn>
 
-              <template #item.orderDate="{ item }">
-                <div class="text-button">
-                  {{ formatDate(item.orderDate) }}
-                </div>
-              </template>
-              <template #item.status="{ item }">
-                <VChip
-                  :color="resolveStatusColor(item.status)"
-                  size="small"
-                  class="font-weight-medium"
-                >
-                  {{ resolveStatusText(item.status) }}
-                </VChip>
-              </template>
-              <template #item.action="{ item }">
-                <IconBtn @click="router.push(`order-info/${item.id}`)">
-                  <VIcon icon="bx-info-circle" />
-                </IconBtn>
-                <IconBtn
-                  v-if="item.status === 'pending'"
-                  @click="openEditDialog(item)"
-                >
-                  <VIcon icon="bx-edit" color="success" />
-                </IconBtn>
-                <IconBtn
-                  v-if="item.status === 'pending'"
-                  @click="openDeleteDialog(item.id)"
-                >
-                  <VIcon color="error" icon="bx-trash" />
-                </IconBtn>
-              </template>
-            </VDataTable>
-          </VTabsWindowItem>
-          <VTabsWindowItem value="2">
-            <VDataTable
-              :items="completedOrder"
-              :headers="headers2"
-              class="text-button"
-              :items-per-page="20"
-              :search="search"
-            >
-              <template #item.productName="{ item }">
-                <RouterLink :to="`product-info/${item.productId}`">
-                  {{ item.productName }}
-                </RouterLink>
-              </template>
+              <VBtn
+                icon
+                size="small"
+                color="secondary"
+                variant="text"
+                @click="viewProductDetails(item.productId)"
+              >
+                <VIcon icon="bx-package" />
+                <VTooltip activator="parent" location="top">
+                  Xem thông tin sản phẩm
+                </VTooltip>
+              </VBtn>
 
-              <template #item.supplierName="{ item }">
-                <RouterLink :to="`product-info/${item.supplierId}`">
-                  {{ item.supplierName }}
-                </RouterLink>
-              </template>
+              <VBtn
+                v-if="item.status === 0" 
+                icon
+                size="small"
+                color="error"
+                variant="text"
+                @click="openCancelDialog(item)"
+              >
+                <VIcon icon="bx-x-circle" />
+                <VTooltip activator="parent" location="top">
+                  Hủy đơn hàng
+                </VTooltip>
+              </VBtn>
+            </div>
+          </template>
 
-              <template #item.orderDate="{ item }">
-                <div class="text-button">
-                  {{ formatDate(item.orderDate) }}
-                </div>
-              </template>
-
-              <template #item.action="{ item }">
-                <IconBtn @click="router.push(`order-info/${item.id}`)">
-                  <VIcon icon="bx-info-circle" />
-                </IconBtn>
-              </template>
-            </VDataTable>
-          </VTabsWindowItem>
-          <VTabsWindowItem value="3">
-            <VDataTable
-              :items="confirmedOrders"
-              :headers="headers2"
-              class="text-button"
-              :items-per-page="20"
-              :search="search"
-            >
-              <template #item.productName="{ item }">
-                <RouterLink :to="`product-info/${item.productId}`">
-                  {{ item.productName }}
-                </RouterLink>
-              </template>
-
-              <template #item.supplierName="{ item }">
-                <RouterLink :to="`product-info/${item.supplierId}`">
-                  {{ item.supplierName }}
-                </RouterLink>
-              </template>
-
-              <template #item.orderDate="{ item }">
-                <div class="text-button">
-                  {{ formatDate(item.orderDate) }}
-                </div>
-              </template>
-
-              <template #item.action="{ item }">
-                <IconBtn @click="router.push(`order-info/${item.id}`)">
-                  <VIcon icon="bx-info-circle" />
-                </IconBtn>
-              </template>
-            </VDataTable>
-          </VTabsWindowItem>
-          <VTabsWindowItem value="4">
-            <VDataTable
-              :items="pendingOrders"
-              :headers="headers2"
-              class="text-button"
-              :items-per-page="20"
-              :search="search"
-            >
-              <template #item.productName="{ item }">
-                <RouterLink :to="`product-info/${item.productId}`">
-                  {{ item.productName }}
-                </RouterLink>
-              </template>
-
-              <template #item.supplierName="{ item }">
-                <RouterLink :to="`product-info/${item.supplierId}`">
-                  {{ item.supplierName }}
-                </RouterLink>
-              </template>
-
-              <template #item.orderDate="{ item }">
-                <div class="text-button">
-                  {{ formatDate(item.orderDate) }}
-                </div>
-              </template>
-
-              <template #item.action="{ item }">
-                <IconBtn @click="router.push(`order-info/${item.id}`)">
-                  <VIcon icon="bx-info-circle" />
-                </IconBtn>
-
-                <IconBtn @click="openEditDialog(item)">
-                  <VIcon icon="bx-edit" color="success" />
-                </IconBtn>
-                <IconBtn @click="openDeleteDialog(item.id)">
-                  <VIcon color="error" icon="bx-trash" />
-                </IconBtn>
-              </template>
-            </VDataTable>
-          </VTabsWindowItem>
-        </VTabsWindow>
+          <template #no-data>
+            <div class="text-center pa-4">
+              <p>Không có đơn hàng nào</p>
+            </div>
+          </template>
+        </VDataTable>
       </VCardText>
     </VCard>
 
-    <VDialog v-model="editDialog" max-width="600px">
-      <VCard :title="`Sửa thông tin đơn hàng ${editedItem.id}`">
+    <!-- New Order Dialog -->
+    <VDialog
+      v-model="newOrderDialog"
+      max-width="600px"
+      persistent
+    >
+      <VCard>
+        <VCardTitle class="text-h5">
+          Tạo đơn hàng mới
+        </VCardTitle>
         <VCardText>
-          <VFrom @submit.prevent>
-            <VRow>
-              <VCol cols="12" sm="6">
-                <VTextField
-                  v-model="editedItem.productName"
-                  label="Tên sản phẩm"
-                  :rules="[requiredValidator]"
-                  readonly
-                  disable
-                />
-              </VCol>
-              <VCol cols="12" sm="6">
-                <VTextField
-                  v-model="editedItem.supplierName"
-                  label="Nhà cung cấp"
-                  :rules="[requiredValidator]"
-                  readonly
-                  disable
-                />
-              </VCol>
+          <VRow>
+            <VCol cols="12">
+              <VSelect
+                v-model="newOrder.productId"
+                :items="registeredProducts"
+                item-title="name"
+                item-value="id"
+                label="Sản phẩm"
+                return-object
+                single-line
+                :rules="[requiredValidator]"
+              >
+                <template #item="{ props, item }">
+                  <VListItem v-bind="props">
+                    <VListItemTitle>
+                      {{ item.raw.name }}
+                    </VListItemTitle>
+                    <VListItemSubtitle>
+                      Giá: {{ formatPrice(item.raw.price) }}
+                    </VListItemSubtitle>
+                  </VListItem>
+                </template>
+                <template #selection="{ item }">
+                  {{ item.name }}
+                </template>
+              </VSelect>
+            </VCol>
 
-              <VCol cols="12" sm="12">
-                <VTextField
-                  v-model="editedItem.address"
-                  label="Địa chỉ"
-                  :rules="[requiredValidator]"
-                />
-              </VCol>
-            </VRow>
-          </VFrom>
-        </VCardText>
+            <VCol cols="12" md="6">
+              <VTextField
+                v-model.number="newOrder.quantity"
+                type="number"
+                label="Số lượng"
+                min="1"
+                :rules="[requiredValidator]"
+              />
+            </VCol>
 
-        <VCardText>
-          <div class="self-align-end d-flex gap-4 justify-end">
-            <VBtn color="gray" variant="outlined" @click="closeEdit">
-              <VIcon icon="bx-x"></VIcon> | Hủy bỏ
-            </VBtn>
-            <VBtn color="success" variant="elevated" @click="saveEdit"
-              ><VIcon icon="bx-save"></VIcon>| Lưu lại
-            </VBtn>
-          </div>
+            <VCol cols="12" md="6">
+              <VTextField
+                :model-value="formatPrice(computedTotalPrice)"
+                label="Tổng tiền"
+                readonly
+                disabled
+              />
+            </VCol>
+
+            <VCol cols="12" md="6">
+              <VTextField
+                v-model.number="newOrder.locationX"
+                type="number"
+                label="Vị trí X"
+                :rules="[requiredValidator]"
+              />
+            </VCol>
+
+            <VCol cols="12" md="6">
+              <VTextField
+                v-model.number="newOrder.locationY"
+                type="number"
+                label="Vị trí Y"
+                :rules="[requiredValidator]"
+              />
+            </VCol>
+
+            <VCol cols="12">
+              <VTextarea
+                v-model="newOrder.note"
+                label="Ghi chú"
+                rows="3"
+              />
+            </VCol>
+          </VRow>
         </VCardText>
+        <VCardActions>
+          <VSpacer></VSpacer>
+          <VBtn
+            color="error"
+            variant="text"
+            @click="newOrderDialog = false"
+          >
+            Hủy
+          </VBtn>
+          <VBtn
+            color="primary"
+            @click="createOrder"
+            :loading="isLoading"
+          >
+            Tạo đơn hàng
+          </VBtn>
+        </VCardActions>
       </VCard>
     </VDialog>
 
-    <VDialog v-model="newDialog" max-width="600px">
-      <VCard title="Edit Item">
+    <!-- Confirm Cancel Dialog -->
+    <VDialog
+      v-model="confirmCancelDialog"
+      max-width="500px"
+    >
+      <VCard v-if="selectedOrder">
+        <VCardTitle class="text-h5">
+          Xác nhận hủy đơn hàng
+        </VCardTitle>
         <VCardText>
-          <VFrom @submit.prevent>
-            <VRow>
-              <!-- id: "", // Thêm id
-            productName: "",
-            productId: "",
-            supplierName: "Nhà cung cấp 10",
-            supplierId: "SUP010",
-            orderDate: new Date(),
-            address: "",
-            status: "pending", -->
-
-              <VCol cols="12" sm="6">
-                <VTextField
-                  v-model="newItem.productName"
-                  label="Tên sản phẩm"
-                  :rules="[requiredValidator]"
-                />
-              </VCol>
-              <VCol cols="12" sm="6">
-                <VTextField
-                  v-model="newItem.supplierName"
-                  label="Tên sản phẩm"
-                  :rules="[requiredValidator]"
-                />
-              </VCol>
-              <VCol cols="12" sm="6">
-                <VTextField
-                  v-model="newItem.address"
-                  label="Địa chỉ"
-                  :rules="[requiredValidator]"
-                />
-              </VCol>
-              <VCol cols="12" sm="6">
-                <VTextField
-                  v-model="newItem.quantity"
-                  label="Số lượng"
-                  :rules="[requiredValidator]"
-                />
-              </VCol>
-              <VCol cols="12" sm="6">
-                <MyDatePicker
-                  v-model="newItem.orderDate"
-                  label="Số lượng"
-                  :rules="[requiredValidator]"
-                />
-              </VCol>
-            </VRow>
-          </VFrom>
+          Bạn có chắc chắn muốn hủy đơn hàng {{ selectedOrder.id }} không?
         </VCardText>
-
-        <VCardText>
-          <div class="self-align-end d-flex gap-4 justify-end">
-            <VBtn
-              color="gray"
-              variant="outlined"
-              @click="() => (newDialog = false)"
-            >
-              <VIcon icon="bx-x"></VIcon> | Hủy bỏ
-            </VBtn>
-            <VBtn color="success" variant="elevated" @click="saveNewItem"
-              ><VIcon icon="bx-save"></VIcon>| Thêm mới
-            </VBtn>
-          </div>
-        </VCardText>
+        <VCardActions>
+          <VSpacer></VSpacer>
+          <VBtn
+            color="primary"
+            variant="text"
+            @click="confirmCancelDialog = false"
+          >
+            Không
+          </VBtn>
+          <VBtn
+            color="error"
+            @click="cancelOrder"
+            :loading="isLoading"
+          >
+            Có, hủy đơn hàng
+          </VBtn>
+        </VCardActions>
       </VCard>
     </VDialog>
-
-    <VDialog v-model="deleteDialog" max-width="500px">
-      <VCard title="Bạn có muốn hủy đơn hàng này không?">
-        <VCardText>
-          <div class="d-flex justify-center gap-4">
-            <VBtn
-              variant="outlined"
-              color="secondary"
-              @click="() => (deleteDialog = false)"
-            >
-              Bỏ qua
-            </VBtn>
-            <VBtn color="error" variant="outlined" @click="deleteItem">
-              Xác nhận hủy
-            </VBtn>
-          </div>
-        </VCardText>
-      </VCard>
-    </VDialog>
-
-    <div class="dock-div">
-      <VBtn class="dock-button" color="success" @click="">
-        <VIcon icon="bx-upload" class="me-2" /> | Upload file csv
-      </VBtn>
-      <VBtn @click="openNewDialog" class="dock-button ms-2">
-        <VIcon icon="bxs-file-plus" class="me-2" /> | Đơn mới
-      </VBtn>
-    </div>
-  </div>
+  </section>
 </template>
-
-<style scoped>
-.dock-div {
-  position: fixed; /* Cố định vị trí */
-  top: 100px; /* Cách phía trên 20px */
-  right: 50px; /* Cách phía phải 20px */
-  z-index: 1000; /* Đảm bảo nút nằm trên các thành phần khác */
-}
-.dock-button {
-  transition: all 0.3s ease; /* Hiệu ứng chuyển động mềm */
-}
-.dock-button:hover {
-  transform: scale(1.1); /* Phóng to nhẹ khi hover */
-}
-</style>

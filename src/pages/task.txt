@@ -1,0 +1,21 @@
+Trước hết, hãy đọc file note.txt để biết thiết kế của tôi trên api server
+các file -api trong thư mục src/utils bao gồm các xử lí api từ api server
+đọc routes.ts để biết thiết kế URL hiện tại. xin đừng phá hỏng cấu trúc hiện tại của tôi, thiết kế mới nếu có , hãy dựa trên chúng
+Đọc module pages/supplier để có ý tưởng về thiết kế giao diện trước đó của tôi. Module đó đã tương đối hòa thiện (đọc thôi không sửa).
+
+Giờ thiết kế cho tôi tất cả các pages cho module dropshipper. Tự đề xuất thêm pages mới nếu bạn thấy hợp lí, và trong các pages, bạn có thể tự đề xuất/ triển khai + cải tiến giao diện nếu bạn thấy hợp lí.
+Module dropshipper bao gồm các pages sau:
+supplier-info : Thông tin chi tiết về 1 nhà cung cấp  => bảng danh sách các warehouse/ danh sách các product của ncc đó 
+warehouse : Danh sách tất cả các kho hàng của tất cả các nhà cung Cấp
+warehouse-info : Thông tin chi tiết về kho hàng cụ thể => Bảng các sản phẩm của kho đó
+product-info : Thông tin chi tiết về sản phẩm đó => Bảng danh sách các kho hàng còn chứa sản phẩm đó. Hãy triển khai một nút ( tương tự như buttton Thêm sản phẩm trong pages product của supplier src/pages/supplier/func/product.vue) , nút này có tính năng như sau: nó hiện đăng ký nếu dropshipper này ( dropshipper có id lưu trong localstorage, như thiết kế trước đó của api) chưa đăng ký sản phẩm này, màu xanh lục -success. Click vào nó sẽ hiện hộp thoại để tạo đăng ký. Nếu đã có thông tin đăng ký, nhưng chưa được duyệt, button màu vàng - warning, và hiện ( chỉnh sửa). Click vào đó để chỉnh sửa thông tin đăng ký và cập nhật lại đăng ký. Nếu đã đăng ký và đã được duyệt, nó có màu xanh dương -primary, và hiện 'đăng ký lại'. click vào nó để gửi lại đăng ký mới ( xóa đăng ký đã có và tạo đăng ký mới)
+registration : Trang hiển thị danh sách các đăng ký ( có thể chia làm 2 tab, đã được duyệt và đang đợi duyệt), tạo đăng ký mới ( khi tạo đăng ký mới, check xem đã có đăng ký chưa, nếu có, hiện cảnh báo nếu tạo đăng ký này thì, sẽ xóa đăng ký hiện tại và tạo yêu cầu đăng ký mới)
+order : danh sách các đơn hàng ( chia làm các mục dựa trên status), tạo đơn hàng mới
+order-info : Thông tin chi tiết về đơn hàng (thông tin đơn + Dựa trên thông tin của đơn hàng - thông tin sản phẩm , hiển thị tất cả các thông tin liên quan đến sản phẩm, Nút để hủy đơn nếu đơn chưa được lên kế hoạch vận chuyển, tức là status pending)
+
+
+Có một số trang đã hoàn thành, và tôi tương đối hài lòng, là product, tổng quan và supplier. Bạn có thể phát huy.
+Tuy nhiên trang Nhà cung cấp có vẻ chưa hoàn thành lắm:  danh sách các kho hàng/ mặt hàng của nhà cung cấp, bạn phải dùng api liên quan đến kho hàng/ mặt hàng để gọi, chứ api liên quan đến supplier chỉ trả về thông tin của supplier, chứ không bao gồm danh sách kho hàng/ mặt Hàng 
+
+Ràng buộc:
+Sử dụng các UI thống nhất, ví dụ, chỉ sử dụng toast để thông báo. Hãy check module pages/supplier để biết thiết kế UI trước đó ( đương nhiên nếu chỉnh sửa bố cục/ UI nó tốt hơn, đẹp hơn thì cứ triển khai)

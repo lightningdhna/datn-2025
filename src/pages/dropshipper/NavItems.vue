@@ -1,6 +1,6 @@
 <script lang="ts" setup>
-import VerticalNavLink from "@layouts/components/VerticalNavLink.vue";
 import VerticalNavGroup from "@layouts/components/VerticalNavGroup.vue";
+import VerticalNavLink from "@layouts/components/VerticalNavLink.vue";
 </script>
 
 <template>
@@ -24,7 +24,7 @@ import VerticalNavGroup from "@layouts/components/VerticalNavGroup.vue";
     <VerticalNavLink
       :item="{
         title: 'Mặt hàng',
-        icon: 'bx-category',
+        icon: 'bx-package',
         to: '/dropshipper/product',
       }"
     />

@@ -1,264 +1,372 @@
 <script setup lang="ts">
-import { VCardText } from "vuetify/components";
+import { formatDate, formatPrice } from "@/utils/formatters";
+import { getDropshipperId } from "@/utils/local-storage";
+import { getProductById } from "@/utils/product-api";
+import { computed, onMounted, ref } from "vue";
+import { useRoute, useRouter } from "vue-router";
+import { useToast } from "vue-toastification";
 
 const router = useRouter();
+const route = useRoute();
+const toast = useToast();
+const isLoading = ref(true);
+const order = ref<any>(null);
+const confirmCancelDialog = ref(false);
 
-const props = defineProps({
-  id: {
-    type: String,
-    required: true,
-  },
+// Order ID from route
+const orderId = computed(() => route.params.id as string);
+
+// Fetch order details
+const fetchOrderDetails = async () => {
+  isLoading.value = true;
+  try {
+    // Get dropshipper ID
+    const dropshipperId = getDropshipperId();
+    if (!dropshipperId) {
+      toast.error("Không tìm thấy ID dropshipper");
+      router.push('/dropshipper/order');
+      return;
+    }
+
+    // TODO: Replace this with actual API call when available
+    // For example: const result = await getOrderById(orderId.value);
+    // if (result.success && result.data) { order.value = result.data; }
+    
+    // Simulate API call with timeout
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // Sample data
+    order.value = {
+      id: orderId.value,
+      productId: "PRD001",
+      productName: "Apple iPhone 13",
+      productPrice: 20000000,
+      quantity: 1,
+      totalPrice: 20000000,
+      status: 0, // 0: pending, 1: processing, 2: shipping, 3: completed
+      createdDate: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2), // 2 days ago
+      locationX: 10.762622,
+      locationY: 106.660172,
+      note: "Delivery to front door",
+      estimatedDeliveryDate: new Date(Date.now() + 1000 * 60 * 60 * 24 * 3), // 3 days from now
+      trackingInfo: [
+        {
+          status: "Order Created",
+          date: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2),
+          description: "Your order has been created and is pending processing",
+        },
+      ],
+    };
+
+    if (!order.value) {
+      toast.error("Không tìm thấy thông tin đơn hàng");
+      router.push('/dropshipper/order');
+      return;
+    }
+
+    // Fetch product details if needed
+    if (order.value.productId) {
+      try {
+        const productResult = await getProductById(order.value.productId);
+        if (productResult.success && 'data' in productResult) {
+          // Update product info with actual data
+          order.value.productName = productResult.data.name || order.value.productName;
+          order.value.productPrice = productResult.data.price || order.value.productPrice;
+        }
+      } catch (error) {
+        console.error("Error fetching product details:", error);
+      }
+    }
+  } catch (error) {
+    console.error("Error fetching order details:", error);
+    toast.error("Đã xảy ra lỗi khi tải thông tin đơn hàng");
+    router.push('/dropshipper/order');
+  } finally {
+    isLoading.value = false;
+  }
+};
+
+// Initialize
+onMounted(() => {
+  fetchOrderDetails();
 });
 
-const dateCreated = ref<Date>(new Date());
-const productName = ref("Táo - Tên mặt hàng");
-const productId = ref("prd1");
-const demandNumber = ref<number>(10);
-const supplierName = ref<string>("NCC1 - Tên nhà cung cấp");
-const supplierId = ref("Ncc1");
-const quantityLeft = ref(550);
-const dropshipperName = ref("dp1 - Tên dropshipper ( cửa hàng)");
-const dropshipperId = ref("dp1");
-const customerLocation = ref("đâu đó ở Hà nội, Việt nam");
-const status = ref("pending");
-
-const deleteDialog = ref(false);
-const deleteItem = async () => {
-  console.log("on deleting item");
+// Get status text and color
+const getStatusInfo = (status: number) => {
+  switch (status) {
+    case 0:
+      return { text: "Chờ xử lý", color: "warning" };
+    case 1:
+      return { text: "Đang xử lý", color: "info" };
+    case 2:
+      return { text: "Đang vận chuyển", color: "primary" };
+    case 3:
+      return { text: "Hoàn thành", color: "success" };
+    default:
+      return { text: "Không xác định", color: "error" };
+  }
 };
 
-const formatDate = (date: Date | null) => {
-  if (!date) return "Không có dữ liệu";
-  return new Intl.DateTimeFormat("vi-VN", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  }).format(date);
+// Cancel order function
+const cancelOrder = async () => {
+  try {
+    // TODO: Replace with actual API call to cancel order
+    // Example: const result = await cancelOrderById(orderId.value);
+    // if (result.success) { toast.success(...); router.push(...); }
+    
+    // Simulate API call
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    toast.success("Đã hủy đơn hàng thành công");
+    router.push('/dropshipper/order');
+  } catch (error) {
+    console.error("Error canceling order:", error);
+    toast.error("Đã xảy ra lỗi khi hủy đơn hàng");
+  } finally {
+    confirmCancelDialog.value = false;
+  }
 };
 
-const resolveStatusColor = (status: string) => {
-  if (status === "confirmed") return "primary";
-  if (status === "completed") return "success";
-  if (status === "declined") return "error";
-  if (status === "pending") return "warning";
-};
-const resolveStatusText = (status: string) => {
-  if (status === "confirmed") return "Đang giao";
-  if (status === "completed") return "Đã hoàn thành";
-  if (status === "declined") return "X";
-  if (status === "pending") return "Đợi duyệt";
+// Open cancel dialog
+const openCancelDialog = () => {
+  if (order.value && order.value.status === 0) {
+    confirmCancelDialog.value = true;
+  } else {
+    toast.warning("Chỉ có thể hủy đơn hàng ở trạng thái chờ xử lý");
+  }
 };
 
-const totalQuantity = ref<number>(1);
-const productStored = ref([
-  { id: "WH001", name: "Kho A", location: "Hà Nội", quantity: 50 },
-  { id: "WH002", name: "Kho B", location: "Hồ Chí Minh", quantity: 30 },
-  { id: "WH003", name: "Kho C", location: "Đà Nẵng", quantity: 20 },
-  { id: "WH004", name: "Kho D", location: "Hải Phòng", quantity: 15 },
-  { id: "WH005", name: "Kho E", location: "Cần Thơ", quantity: 25 },
-  { id: "WH006", name: "Kho F", location: "Nha Trang", quantity: 10 },
-  { id: "WH007", name: "Kho G", location: "Vũng Tàu", quantity: 40 },
-  { id: "WH008", name: "Kho H", location: "Quảng Ninh", quantity: 35 },
-  { id: "WH009", name: "Kho I", location: "Huế", quantity: 18 },
-  { id: "WH010", name: "Kho J", location: "Bình Dương", quantity: 22 },
-  { id: "WH011", name: "Kho K", location: "Thanh Hóa", quantity: 28 },
-  { id: "WH012", name: "Kho L", location: "Nghệ An", quantity: 32 },
-  { id: "WH013", name: "Kho M", location: "Bắc Ninh", quantity: 12 },
-  { id: "WH014", name: "Kho N", location: "Lâm Đồng", quantity: 45 },
-  { id: "WH015", name: "Kho O", location: "Bà Rịa - Vũng Tàu", quantity: 50 },
-  { id: "WH016", name: "Kho P", location: "Hậu Giang", quantity: 20 },
-  { id: "WH017", name: "Kho Q", location: "Đồng Nai", quantity: 38 },
-  { id: "WH018", name: "Kho R", location: "Long An", quantity: 25 },
-  { id: "WH019", name: "Kho S", location: "Tiền Giang", quantity: 30 },
-  { id: "WH020", name: "Kho T", location: "Bến Tre", quantity: 15 },
-  { id: "WH021", name: "Kho U", location: "Phú Thọ", quantity: 18 },
-  { id: "WH022", name: "Kho V", location: "Thái Nguyên", quantity: 22 },
-]);
+// View product details
+const viewProductDetails = () => {
+  if (order.value && order.value.productId) {
+    router.push(`/dropshipper/product-info/${order.value.productId}`);
+  }
+};
 
-const headers = [
-  { title: "Tên kho", key: "name" },
-  { title: "Địa chỉ kho", key: "location" },
-  { title: "Số lượng còn", key: "quantity" },
-  { title: "Chi tiết", key: "action" },
-];
-// Ví dụ: Gán giá trị cho `dateCreated`
+// Format tracking date
+const formatTrackingDate = (date: Date) => {
+  return formatDate(date);
+};
 </script>
 
 <template>
-  <VCard>
-    <VCardTitle class="d-flex align-center">
-      <VIcon icon="bx-receipt" size="2rem" class="me-2" />
-      <span>Thông tin đơn hàng</span>
-    </VCardTitle>
+  <section>
+    <VBackBtn class="mb-4" />
 
-    <VCardText class="mt-6">
-      <VRow>
-        <VCol cols="12" sm="3">
-          <div class="text-button">Mã đơn hàng :</div>
-        </VCol>
-        <VCol cols="12" sm="4">
-          <div class="text-button">{{ props.id }}</div>
-        </VCol>
-      </VRow>
-      <VRow>
-        <VCol cols="12" sm="3">
-          <div class="text-button">Trạng thái :</div>
-        </VCol>
-        <VCol cols="12" sm="4">
-          <div :class="`text-button text-${resolveStatusColor(status)}`">
-            {{ resolveStatusText(status) }}
-          </div>
-        </VCol>
-      </VRow>
-      <VRow>
-        <VCol cols="12" sm="3">
-          <div class="text-button">Sản phẩm :</div>
-        </VCol>
-        <VCol cols="12" sm="4">
-          <RouterLink
-            class="text-primary text-button"
-            :to="`../product-info/${productId}`"
-          >
-            {{ productName }}</RouterLink
-          >
-        </VCol>
-      </VRow>
-      <VRow>
-        <VCol cols="12" sm="3">
-          <div class="text-button">Số lượng yêu cầu :</div>
-        </VCol>
-        <VCol cols="12" sm="4">
-          <div class="text-button">{{ demandNumber }}</div>
-        </VCol>
-      </VRow>
-      <VRow>
-        <VCol cols="12" sm="3">
-          <div class="text-button">Địa chỉ :</div>
-        </VCol>
-        <VCol cols="12" sm="4">
-          <div class="text-button">
-            {{ customerLocation }}
-          </div>
-        </VCol>
-      </VRow>
-      <VRow>
-        <VCol cols="12" sm="3">
-          <div class="text-button">Thời điểm tạo :</div>
-        </VCol>
-        <VCol cols="12" sm="4">
-          <div class="text-button">{{ formatDate(dateCreated) }}</div>
-        </VCol>
-      </VRow>
-      <VRow>
-        <VCol cols="12" sm="3">
-          <div class="text-button">Nhà cung cấp :</div>
-        </VCol>
-        <VCol cols="12" sm="4">
-          <RouterLink
-            class="text-button text-primary"
-            :to="`../supplier-info/${supplierId}`"
-          >
-            {{ supplierName }}
-          </RouterLink>
-        </VCol>
-      </VRow>
-      <VRow>
-        <VCol cols="12" sm="3">
-          <div class="text-button">Dropshipper :</div>
-        </VCol>
-        <VCol cols="12" sm="4">
-          <RouterLink
-            class="text-button text-primary"
-            :to="`../dropshipper/${dropshipperId}`"
-          >
-            {{ dropshipperName }}
-          </RouterLink>
-        </VCol>
-      </VRow>
-      <VRow>
-        <VCol cols="12" sm="3">
-          <div class="text-button">Số lượng hàng còn :</div>
-        </VCol>
-        <VCol cols="12" sm="4">
-          <div class="text-button">{{ quantityLeft }}</div>
-        </VCol>
-      </VRow>
-
-      <VCard class="mt-6">
-        <VCardTitle class="text-h6 font-weight-medium">
-          Danh sách kho còn hàng
-        </VCardTitle>
-        <VCardText class="mt-3">
-          <VDataTable
-            :headers="headers"
-            :items="productStored"
-            :items-per-page="20"
-          >
-            <template #item.action="{ item }">
-              <IconBtn>
-                <VIcon
-                  icon="bx-info-circle"
-                  @click="router.push(`../warehouse-info/${item.id}`)"
-                />
-              </IconBtn>
-            </template>
-          </VDataTable>
-        </VCardText>
-      </VCard>
-    </VCardText>
-  </VCard>
-  <div class="dock-button d-flex align-items-center gap-2">
-    <VBtn v-if="false && status === 'pending'" color="primary" variant="tonal">
-      Duyệt
-    </VBtn>
-    <VBtn
-      v-if="status === 'pending'"
-      color="error"
-      variant="tonal"
-      @click="
-        () => {
-          deleteDialog = true;
-        }
-      "
-    >
-      <VIcon icon="bx-trash" class="me-2"></VIcon>
-      Hủy đơn
-    </VBtn>
-  </div>
-
-  <VDialog v-model="deleteDialog" max-width="500px">
-    <VCard title="Bạn có muốn hủy đơn hàng này không?">
+    <VCard v-if="isLoading">
       <VCardText>
-        <div class="d-flex justify-center gap-4">
-          <VBtn
-            variant="outlined"
-            color="secondary"
-            @click="() => (deleteDialog = false)"
-          >
-            Bỏ qua
-          </VBtn>
-          <VBtn color="error" variant="outlined" @click="deleteItem">
-            Xác nhận hủy
+        <div class="d-flex justify-center align-center pa-4">
+          <VProgressCircular indeterminate color="primary" />
+        </div>
+      </VCardText>
+    </VCard>
+
+    <div v-else-if="order">
+      <VRow>
+        <!-- Order Details Card -->
+        <VCol cols="12" md="8">
+          <VCard>
+            <VCardItem>
+              <VCardTitle class="text-h5 d-flex align-center">
+                <VIcon icon="bx-receipt" class="me-2" />
+                Chi tiết đơn hàng #{{ order.id }}
+                <VSpacer />
+                <VChip
+                  :color="getStatusInfo(order.status).color"
+                  class="ms-2"
+                >
+                  {{ getStatusInfo(order.status).text }}
+                </VChip>
+              </VCardTitle>
+            </VCardItem>
+
+            <VDivider />
+
+            <VCardText>
+              <VRow>
+                <VCol cols="12" md="6">
+                  <h3 class="text-h6 mb-2">Thông tin đơn hàng</h3>
+                  <VList density="compact">
+                    <VListItem>
+                      <VListItemTitle>Ngày tạo đơn</VListItemTitle>
+                      <VListItemSubtitle>
+                        {{ formatDate(order.createdDate) }}
+                      </VListItemSubtitle>
+                    </VListItem>
+                    
+                    <VListItem>
+                      <VListItemTitle>Dự kiến giao hàng</VListItemTitle>
+                      <VListItemSubtitle>
+                        {{ formatDate(order.estimatedDeliveryDate) }}
+                      </VListItemSubtitle>
+                    </VListItem>
+                    
+                    <VListItem>
+                      <VListItemTitle>Vị trí giao hàng</VListItemTitle>
+                      <VListItemSubtitle>
+                        X: {{ order.locationX }}, Y: {{ order.locationY }}
+                      </VListItemSubtitle>
+                    </VListItem>
+                    
+                    <VListItem v-if="order.note">
+                      <VListItemTitle>Ghi chú</VListItemTitle>
+                      <VListItemSubtitle>
+                        {{ order.note }}
+                      </VListItemSubtitle>
+                    </VListItem>
+                  </VList>
+                </VCol>
+                
+                <VCol cols="12" md="6">
+                  <h3 class="text-h6 mb-2">Thông tin sản phẩm</h3>
+                  <VList density="compact">
+                    <VListItem>
+                      <template #prepend>
+                        <VAvatar size="40" rounded="0" class="me-3">
+                          <VImg
+                            src="https://via.placeholder.com/150"
+                            alt="Product"
+                          />
+                        </VAvatar>
+                      </template>
+                      <VListItemTitle>
+                        <span class="text-primary cursor-pointer" @click="viewProductDetails">
+                          {{ order.productName }}
+                        </span>
+                      </VListItemTitle>
+                    </VListItem>
+                    
+                    <VListItem>
+                      <VListItemTitle>Đơn giá</VListItemTitle>
+                      <VListItemSubtitle>
+                        {{ formatPrice(order.productPrice) }}
+                      </VListItemSubtitle>
+                    </VListItem>
+                    
+                    <VListItem>
+                      <VListItemTitle>Số lượng</VListItemTitle>
+                      <VListItemSubtitle>
+                        {{ order.quantity }}
+                      </VListItemSubtitle>
+                    </VListItem>
+                    
+                    <VListItem>
+                      <VListItemTitle>Tổng tiền</VListItemTitle>
+                      <VListItemSubtitle class="text-primary font-weight-bold">
+                        {{ formatPrice(order.totalPrice) }}
+                      </VListItemSubtitle>
+                    </VListItem>
+                  </VList>
+                </VCol>
+              </VRow>
+
+              <VRow v-if="order.status === 0">
+                <VCol cols="12" class="d-flex justify-end">
+                  <VBtn
+                    color="error"
+                    variant="outlined"
+                    @click="openCancelDialog"
+                  >
+                    <VIcon icon="bx-x-circle" class="me-2" />
+                    Hủy đơn hàng
+                  </VBtn>
+                </VCol>
+              </VRow>
+            </VCardText>
+          </VCard>
+        </VCol>
+
+        <!-- Tracking Card -->
+        <VCol cols="12" md="4">
+          <VCard>
+            <VCardItem>
+              <VCardTitle class="text-h5">
+                <VIcon icon="bx-map" class="me-2" />
+                Theo dõi đơn hàng
+              </VCardTitle>
+            </VCardItem>
+
+            <VDivider />
+
+            <VCardText>
+              <VTimeline density="compact" align="start">
+                <VTimelineItem
+                  v-for="(item, index) in order.trackingInfo"
+                  :key="index"
+                  :dot-color="index === 0 ? 'primary' : ''"
+                  :icon="index === 0 ? 'bx-check-circle' : undefined"
+                >
+                  <template #opposite>
+                    <span class="text-caption">
+                      {{ formatTrackingDate(item.date) }}
+                    </span>
+                  </template>
+                  <VCard density="compact" variant="flat">
+                    <VCardTitle class="text-subtitle-1 pt-1 pb-1">
+                      {{ item.status }}
+                    </VCardTitle>
+                    <VCardText class="text-caption">
+                      {{ item.description }}
+                    </VCardText>
+                  </VCard>
+                </VTimelineItem>
+              </VTimeline>
+            </VCardText>
+          </VCard>
+        </VCol>
+      </VRow>
+    </div>
+
+    <VCard v-else>
+      <VCardText>
+        <div class="text-center pa-4">
+          <p>Không tìm thấy thông tin đơn hàng</p>
+          <VBtn class="mt-2" to="/dropshipper/order">
+            Quay lại danh sách đơn hàng
           </VBtn>
         </div>
       </VCardText>
     </VCard>
-  </VDialog>
+
+    <!-- Confirm Cancel Dialog -->
+    <VDialog
+      v-model="confirmCancelDialog"
+      max-width="500px"
+    >
+      <VCard>
+        <VCardTitle class="text-h5">
+          Xác nhận hủy đơn hàng
+        </VCardTitle>
+        <VCardText>
+          Bạn có chắc chắn muốn hủy đơn hàng #{{ order?.id }} không?
+          <p class="text-caption mt-2">
+            Lưu ý: Hành động này không thể hoàn tác sau khi xác nhận.
+          </p>
+        </VCardText>
+        <VCardActions>
+          <VSpacer></VSpacer>
+          <VBtn
+            color="primary"
+            variant="text"
+            @click="confirmCancelDialog = false"
+          >
+            Không
+          </VBtn>
+          <VBtn
+            color="error"
+            @click="cancelOrder"
+            :loading="isLoading"
+          >
+            Có, hủy đơn hàng
+          </VBtn>
+        </VCardActions>
+      </VCard>
+    </VDialog>
+  </section>
 </template>
 
 <style scoped>
-.dock-button {
-  position: fixed; /* Cố định vị trí */
-  top: 100px; /* Cách phía trên 20px */
-  right: 50px; /* Cách phía phải 20px */
-  z-index: 1000; /* Đảm bảo nút nằm trên các thành phần khác */
-  transition: all 0.3s ease; /* Hiệu ứng chuyển động mềm */
-}
-
-.dock-button:hover {
-  transform: scale(1.1); /* Phóng to nhẹ khi hover */
+.cursor-pointer {
+  cursor: pointer;
 }
 </style>

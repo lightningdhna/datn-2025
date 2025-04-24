@@ -1,297 +1,497 @@
 <script setup lang="ts">
-import MyDatePicker from "@/components/MyDatePicker.vue";
-import { requiredValidator } from "@/utils/validator";
+import { formatDate, formatPrice } from "@/utils/formatters";
+import { getProductById } from "@/utils/product-api";
+import {
+createRegistrationForCurrentDropshipper,
+getRegistrationsByCurrentDropshipper,
+removeRegistrationForCurrentDropshipper,
+} from "@/utils/registration-api";
+import { computed, onMounted, ref } from "vue";
+import { useRouter } from "vue-router";
+import { useToast } from "vue-toastification";
 
 const router = useRouter();
-
+const toast = useToast();
+const isLoading = ref(true);
 const search = ref("");
+const activeTab = ref(0);
 
-const registrationList = ref(
-  Array.from({ length: 30 }, (_, index) => {
-    const fruits = [
-      "Táo",
-      "Cam",
-      "Chuối",
-      "Xoài",
-      "Dưa hấu",
-      "Ổi",
-      "Mận",
-      "Dứa",
-      "Nho",
-      "Bưởi",
-      "Chanh",
-      "Quýt",
-      "Dâu tây",
-      "Kiwi",
-      "Lựu",
-      "Đào",
-      "Mít",
-      "Na",
-      "Sầu riêng",
-      "Me",
-      "Chôm chôm",
-      "Vải",
-      "Măng cụt",
-      "Táo xanh",
-      "Ổi đỏ",
-      "Cam sành",
-      "Dưa lê",
-      "Mít thái",
-      "Dừa",
-      "Chanh dây",
-    ];
+// Data
+const pendingRegistrations = ref<any[]>([]);
+const approvedRegistrations = ref<any[]>([]);
+const rejectedRegistrations = ref<any[]>([]);
 
-    const randomDate = () => {
-      const start = new Date(2020, 0, 1).getTime(); // Ngày bắt đầu (1/1/2020)
-      const end = new Date().getTime(); // Ngày hiện tại
-      return new Date(start + Math.random() * (end - start)); // Ngày ngẫu nhiên trong quá khứ
-    };
+// Dialogs
+const registrationDialog = ref(false);
+const confirmDeleteDialog = ref(false);
+const selectedProduct = ref<any>(null);
+const registrationCommissionFee = ref<number>(5); // Default commission fee
 
-    const randomStatus = () => (Math.random() > 0.5 ? "accepted" : "pending"); // Trạng thái ngẫu nhiên
+// Fetch registrations
+const fetchRegistrations = async () => {
+  isLoading.value = true;
+  try {
+    // Fetch pending registrations
+    const pendingResult = await getRegistrationsByCurrentDropshipper(0);
+    if (pendingResult.success && 'data' in pendingResult) {
+      pendingRegistrations.value = pendingResult.data.map((reg: any) => ({
+        id: `${reg.dropshipperId}_${reg.productId}`,
+        productId: reg.productId,
+        productName: reg.product?.name || "Unknown Product",
+        productPrice: reg.product?.price || 0,
+        supplierName: reg.product?.supplier?.name || "Unknown Supplier",
+        supplierId: reg.product?.supplierId,
+        commissionFee: reg.commissionFee,
+        createdDate: new Date(reg.createdDate),
+        status: reg.status,
+      }));
+    }
 
-    return {
-      id: `REG${String(index + 1).padStart(3, "0")}`, // ID đăng ký
-      productName: fruits[index % fruits.length], // Tên sản phẩm
-      productId: `PRD${String(index + 1).padStart(3, "0")}`, // Mã sản phẩm
-      price: (Math.random() * 100).toFixed(2), // Giá sản phẩm (ngẫu nhiên từ 0 đến 100)
-      supplierName: `Nhà cung cấp ${index + 1}`, // Tên nhà cung cấp
-      supplierId: `SUP${String(index + 1).padStart(3, "0")}`, // Mã nhà cung cấp
-      commissionFee: Math.floor(Math.random() * 20) + 1, // Phí hoa hồng (1-20%)
-      registrationDate: randomDate(), // Thời điểm đăng ký (ngẫu nhiên trong quá khứ)
-      status: randomStatus(), // Trạng thái ngẫu nhiên (accepted hoặc pending)
-    };
-  })
-);
+    // Fetch approved registrations
+    const approvedResult = await getRegistrationsByCurrentDropshipper(1);
+    if (approvedResult.success && 'data' in approvedResult) {
+      approvedRegistrations.value = approvedResult.data.map((reg: any) => ({
+        id: `${reg.dropshipperId}_${reg.productId}`,
+        productId: reg.productId,
+        productName: reg.product?.name || "Unknown Product",
+        productPrice: reg.product?.price || 0,
+        supplierName: reg.product?.supplier?.name || "Unknown Supplier",
+        supplierId: reg.product?.supplierId,
+        commissionFee: reg.commissionFee,
+        createdDate: new Date(reg.createdDate),
+        status: reg.status,
+      }));
+    }
 
-const headers = [
-  { title: "Tên kho hàng", key: "productName", align: " d-none" },
-  { title: "Sản phẩm", key: "product" },
-
-  { title: "", key: "supplierName", align: " d-none" },
-  { title: "Nhà cung cấp", key: "supplier" },
-
-  { title: "Giá", key: "price" },
-  { title: "phí hoa hồng", key: "commissionFee" },
-
-  { title: "Ngày đăng kí", key: "registrationDate" },
-  { title: "Trạng thái", key: "status" },
-];
-
-const newDialog = ref(false);
-const newItem = ref<any | undefined>();
-
-const openNewDialog = () => {
-  console.log("....");
-  newItem.value = {
-    id: "",
-    productName: "",
-    productId: "",
-    price: 0,
-    supplierName: "",
-    supplierId: "",
-    commissionFee: 0,
-    registrationDate: new Date(),
-    status: "pending",
-  };
-  newDialog.value = true;
-};
-
-const saveNewItem = () => {
-  newItem.value.id = Math.random().toString(36).substr(2, 9);
-  registrationList.value.unshift(newItem.value);
-  newDialog.value = false;
-};
-
-const formatDate = (date: Date | null) => {
-  if (!date) return "Không có dữ liệu";
-
-  const parsedDate = new Date(date);
-  if (isNaN(parsedDate.getTime())) {
-    return "Ngày không hợp lệ"; // Xử lý khi giá trị không phải là ngày hợp lệ
+    // Fetch rejected registrations
+    const rejectedResult = await getRegistrationsByCurrentDropshipper(2);
+    if (rejectedResult.success && 'data' in rejectedResult) {
+      rejectedRegistrations.value = rejectedResult.data.map((reg: any) => ({
+        id: `${reg.dropshipperId}_${reg.productId}`,
+        productId: reg.productId,
+        productName: reg.product?.name || "Unknown Product",
+        productPrice: reg.product?.price || 0,
+        supplierName: reg.product?.supplier?.name || "Unknown Supplier",
+        supplierId: reg.product?.supplierId,
+        commissionFee: reg.commissionFee,
+        createdDate: new Date(reg.createdDate),
+        status: reg.status,
+      }));
+    }
+  } catch (error) {
+    console.error("Lỗi khi tải đăng ký:", error);
+    toast.error("Đã xảy ra lỗi khi tải danh sách đăng ký");
+  } finally {
+    isLoading.value = false;
   }
-
-  const day = parsedDate.getDate(); // Lấy ngày
-  const month = parsedDate.getMonth() + 1; // Lấy tháng (cộng 1 vì getMonth() trả về giá trị từ 0-11)
-  const year = parsedDate.getFullYear(); // Lấy năm
-
-  return `Ngày ${day}/${month}/${year}`; // Định dạng ngày
 };
 
-const resolveStatusColor = (status: string) => {
-  if (status === "pending") return "warning";
-  if (status === "accepted") return "success";
+// Initialize
+onMounted(() => {
+  fetchRegistrations();
+});
+
+// Table headers
+const registrationHeaders = [
+  { title: "Sản phẩm", key: "productName" },
+  { title: "Giá", key: "productPrice", align: "end" },
+  { title: "Nhà cung cấp", key: "supplierName" },
+  { title: "Phí hoa hồng", key: "commissionFee", align: "end" },
+  { title: "Ngày đăng ký", key: "createdDate" },
+  { title: "Thao tác", key: "actions", align: "center" },
+] as const;
+
+// Navigation functions
+const viewProductDetails = (productId: string) => {
+  router.push(`/dropshipper/product-info/${productId}`);
 };
 
-const resolveStatusText = (status: string) => {
-  if (status === "pending") return "Đang đợi duyệt";
-  if (status === "accepted") return "Đã được chấp nhận";
+const viewSupplierDetails = (supplierId: string) => {
+  router.push(`/dropshipper/supplier-info/${supplierId}`);
 };
+
+// Create new registration
+const openRegistrationDialog = async (productId: string) => {
+  try {
+    isLoading.value = true;
+    const productResult = await getProductById(productId);
+    if (productResult.success && 'data' in productResult) {
+      selectedProduct.value = productResult.data;
+      registrationDialog.value = true;
+    } else {
+      const errorMessage = 'message' in productResult 
+        ? productResult.message 
+        : "Lỗi không xác định";
+      toast.error(`Không thể tải thông tin sản phẩm: ${errorMessage}`);
+    }
+  } catch (error) {
+    console.error("Lỗi khi tải thông tin sản phẩm:", error);
+    toast.error("Đã xảy ra lỗi khi tải thông tin sản phẩm");
+  } finally {
+    isLoading.value = false;
+  }
+};
+
+// Remove registration
+const confirmRemoveRegistration = (registration: any) => {
+  selectedProduct.value = {
+    id: registration.productId,
+    name: registration.productName,
+  };
+  confirmDeleteDialog.value = true;
+};
+
+// Create registration
+const createRegistration = async () => {
+  if (!selectedProduct.value?.id) return;
+
+  try {
+    isLoading.value = true;
+    const createResult = await createRegistrationForCurrentDropshipper(
+      selectedProduct.value.id,
+      registrationCommissionFee.value
+    );
+
+    if (createResult.success) {
+      toast.success("Đã đăng ký bán sản phẩm thành công!");
+      registrationDialog.value = false;
+      await fetchRegistrations(); // Refresh registrations
+    } else {
+      const errorMessage = 'message' in createResult 
+        ? createResult.message 
+        : "Lỗi không xác định";
+      toast.error("Lỗi khi đăng ký sản phẩm: " + errorMessage);
+    }
+  } catch (error) {
+    console.error("Lỗi khi đăng ký sản phẩm:", error);
+    toast.error("Đã xảy ra lỗi khi đăng ký sản phẩm");
+  } finally {
+    isLoading.value = false;
+  }
+};
+
+// Delete registration
+const deleteRegistration = async () => {
+  if (!selectedProduct.value?.id) return;
+
+  try {
+    isLoading.value = true;
+    const result = await removeRegistrationForCurrentDropshipper(selectedProduct.value.id);
+    
+    if (result.success) {
+      toast.success("Đã xóa đăng ký thành công!");
+      confirmDeleteDialog.value = false;
+      await fetchRegistrations(); // Refresh registrations
+    } else {
+      const errorMessage = 'message' in result 
+        ? result.message 
+        : "Lỗi không xác định";
+      toast.error("Lỗi khi xóa đăng ký: " + errorMessage);
+    }
+  } catch (error) {
+    console.error("Lỗi khi xóa đăng ký:", error);
+    toast.error("Đã xảy ra lỗi khi xóa đăng ký");
+  } finally {
+    isLoading.value = false;
+    confirmDeleteDialog.value = false;
+  }
+};
+
+// Refresh data
+const refreshData = async () => {
+  await fetchRegistrations();
+  toast.success("Đã làm mới danh sách đăng ký");
+};
+
+// Get current registrations based on active tab
+const currentRegistrations = computed(() => {
+  switch (activeTab.value) {
+    case 0:
+      return pendingRegistrations.value;
+    case 1:
+      return approvedRegistrations.value;
+    case 2:
+      return rejectedRegistrations.value;
+    default:
+      return [];
+  }
+});
 </script>
 
 <template>
-  <div>
+  <section>
     <VCard>
-      <VCardItem class="pb-3">
-        <VCardTitle class="text-primary">
-          <VIcon icon="bx-registered"></VIcon>
-          Danh sách đăng ký
+      <!-- HEADER -->
+      <VCardItem>
+        <VCardTitle class="text-h5 d-flex align-center">
+          <VIcon icon="bx-registered" class="me-2" />
+          Quản lý đăng ký sản phẩm
+          <VSpacer />
+          <VBtn
+            icon
+            size="small"
+            variant="text"
+            color="default"
+            @click="refreshData"
+          >
+            <VIcon icon="bx-refresh" />
+          </VBtn>
         </VCardTitle>
       </VCardItem>
-      <div>
-        <VCardText class="pt-0">
-          <VRow style="direction: ltr">
-            <VCol cols="12" offset-md="0" md="4">
+
+      <VDivider />
+
+      <VCardText>
+        <VRow>
+          <VCol cols="12" md="6">
               <VTextField
                 v-model="search"
-                placeholder="Search ..."
-                append-inner-icon="bx-search"
+              density="compact"
+              label="Tìm kiếm đăng ký"
+              prepend-inner-icon="bx-search"
+              clearable
                 single-line
                 hide-details
-                dense
-                outlined
               />
             </VCol>
-            <!-- <VCol
-          cols="auto"
-          md="2"
-          offset-md="2"
-
-          style="flex-grow: 1;"
-        >
-          <MyDatePicker
-            v-model="firstDate"
-            clearable
-            hide-details="auto"
+          <VCol cols="12" md="6" class="d-flex justify-end">
+            <VBtn
             color="primary"
-            label="from"
-          />
-        </vcol>
-        <VCol
-          cols="7"
-          md="2"
-          style="flex-grow: 1;"
-        >
-          <MyDatePicker
-            v-model="lastDate"
-            clearable
-            hide-details="auto"
-            color="primary"
-            label="to"
-          />
-        </vcol> -->
+              prepend-icon="bx-plus"
+              @click="router.push('/dropshipper/product')"
+            >
+              Thêm đăng ký mới
+            </VBtn>
+          </VCol>
           </VRow>
-        </VCardText>
 
-        <!-- 👉 Data Table  -->
+        <!-- Tabs -->
+        <VTabs v-model="activeTab" class="mt-4">
+          <VTab :value="0" class="text-capitalize">
+            <VBadge
+              :content="pendingRegistrations.length"
+              :model-value="pendingRegistrations.length > 0"
+              color="warning"
+              class="me-3"
+            >
+              Chờ duyệt
+            </VBadge>
+          </VTab>
+          <VTab :value="1" class="text-capitalize">
+            <VBadge
+              :content="approvedRegistrations.length"
+              :model-value="approvedRegistrations.length > 0"
+              color="success"
+              class="me-3"
+            >
+              Đã duyệt
+            </VBadge>
+          </VTab>
+          <VTab :value="2" class="text-capitalize">
+            <VBadge
+              :content="rejectedRegistrations.length"
+              :model-value="rejectedRegistrations.length > 0"
+              color="error"
+              class="me-3"
+            >
+              Bị từ chối
+            </VBadge>
+          </VTab>
+        </VTabs>
+
+        <VWindow v-model="activeTab" class="mt-5">
+          <VWindowItem v-for="tabIndex in [0, 1, 2]" :key="tabIndex" :value="tabIndex">
         <VDataTable
-          :headers="headers"
-          :items="registrationList || []"
+              :headers="registrationHeaders"
+              :items="currentRegistrations"
           :search="search"
-          :items-per-page="10"
-        >
-          <template #item.product="{ item }">
-            <RouterLink :to="`product-info/${item.productId}`">
-              {{ item.productName }}
-            </RouterLink>
+              :loading="isLoading"
+              hover
+              item-value="id"
+            >
+              <template #item.productPrice="{ item }">
+                {{ formatPrice(item.productPrice) }}
+              </template>
+
+              <template #item.commissionFee="{ item }">
+                {{ item.commissionFee }}%
+              </template>
+
+              <template #item.createdDate="{ item }">
+                {{ formatDate(item.createdDate) }}
           </template>
-          <template #item.supplier="{ item }">
-            <RouterLink :to="`supplier-info/${item.supplierId}`">
-              {{ item.supplierName }}
-            </RouterLink>
+
+              <template #item.actions="{ item }">
+                <div class="d-flex gap-1 justify-center">
+                  <VBtn
+                    icon
+                    size="small"
+                    color="primary"
+                    variant="text"
+                    @click="viewProductDetails(item.productId)"
+                  >
+                    <VIcon icon="bx-package" />
+                    <VTooltip activator="parent" location="top">
+                      Xem chi tiết sản phẩm
+                    </VTooltip>
+                  </VBtn>
+
+                  <VBtn
+                    icon
+                    size="small"
+                    color="secondary"
+                    variant="text"
+                    @click="viewSupplierDetails(item.supplierId)"
+                  >
+                    <VIcon icon="bx-store" />
+                    <VTooltip activator="parent" location="top">
+                      Xem thông tin nhà cung cấp
+                    </VTooltip>
+                  </VBtn>
+
+                  <VBtn
+                    v-if="activeTab === 0" 
+                    icon
+                    size="small"
+                    color="warning"
+                    variant="text"
+                    @click="openRegistrationDialog(item.productId)"
+                  >
+                    <VIcon icon="bx-edit" />
+                    <VTooltip activator="parent" location="top">
+                      Chỉnh sửa đăng ký
+                    </VTooltip>
+                  </VBtn>
+
+                  <VBtn
+                    v-if="activeTab !== 1"
+                    icon
+                    size="small"
+                    color="error"
+                    variant="text"
+                    @click="confirmRemoveRegistration(item)"
+                  >
+                    <VIcon icon="bx-trash" />
+                    <VTooltip activator="parent" location="top">
+                      Xóa đăng ký
+                    </VTooltip>
+                  </VBtn>
+                </div>
           </template>
-          <template #item.registrationDate="{ item }">
-            {{ formatDate(item.registrationDate) }}
+
+              <template #no-data>
+                <div class="text-center pa-4">
+                  <p v-if="activeTab === 0">Không có đăng ký nào đang chờ duyệt</p>
+                  <p v-else-if="activeTab === 1">Không có đăng ký nào đã được duyệt</p>
+                  <p v-else>Không có đăng ký nào bị từ chối</p>
+                </div>
           </template>
         </VDataTable>
-      </div>
+          </VWindowItem>
+        </VWindow>
+      </VCardText>
     </VCard>
 
-    <VDialog v-model="newDialog" max-width="600px">
-      <VCard title="Edit Item">
+    <!-- Registration Dialog -->
+    <VDialog
+      v-model="registrationDialog"
+      max-width="500px"
+      persistent
+    >
+      <VCard v-if="selectedProduct">
+        <VCardTitle class="text-h5">
+          Cập nhật đăng ký
+        </VCardTitle>
         <VCardText>
-          <VFrom @submit.prevent>
-            <VRow>
-              <VCol cols="12" sm="6">
-                <VTextField
-                  v-model="newItem.commissionFee"
-                  label="Phí hoa hồng mong muốn"
-                  :rules="[requiredValidator]"
-                  suffix="%"
-                />
+          <VRow class="mt-2">
+            <VCol cols="12">
+              <p>{{ selectedProduct.name }}</p>
+              <p class="text-subtitle-2">Giá: {{ formatPrice(selectedProduct.price) }}</p>
               </VCol>
-              <VCol cols="12" sm="6">
-                <VAutocomplete
-                  v-model="newItem.productName"
-                  label="Tên sản phẩm"
-                  readonly
-                />
+            <VCol cols="12">
+              <VSlider
+                v-model="registrationCommissionFee"
+                label="Phí hoa hồng (%)"
+                min="1"
+                max="20"
+                step="0.5"
+                thumb-label
+              ></VSlider>
               </VCol>
-
-              <VCol cols="12" sm="6">
-                <VTextField
-                  v-model="newItem.productId"
-                  label="Mã sản phẩm"
-                  readonly
-                />
-              </VCol>
-
-              <VCol cols="12" sm="6">
-                <VTextField
-                  v-model="newItem.supplierName"
-                  label="Tên nhà cung cấp"
-                  readonly
-                />
-              </VCol>
-
-              <VCol cols="12" sm="6">
-                <MyDatePicker
-                  v-model="newItem.registrationDate"
-                  label="Ngày đăng ký"
-                  disable
-                />
+            <VCol cols="12">
+              <p class="text-caption">
+                * Cập nhật đăng ký sẽ xóa đăng ký hiện tại và tạo đăng ký mới.
+                Đăng ký mới sẽ được gửi tới nhà cung cấp để duyệt lại.
+              </p>
               </VCol>
             </VRow>
-          </VFrom>
         </VCardText>
-
-        <VCardText>
-          <div class="self-align-end d-flex gap-4 justify-end">
-            <VBtn
-              color="gray"
-              variant="outlined"
-              @click="() => (newDialog = false)"
-            >
-              <VIcon icon="bx-x"></VIcon> | Hủy bỏ
-            </VBtn>
-            <VBtn color="success" variant="elevated" @click="saveNewItem"
-              ><VIcon icon="bx-save"></VIcon>| Thêm mới
-            </VBtn>
-          </div>
-        </VCardText>
+        <VCardActions>
+          <VSpacer></VSpacer>
+          <VBtn
+            color="error"
+            variant="text"
+            @click="registrationDialog = false"
+          >
+            Hủy
+          </VBtn>
+          <VBtn
+            color="primary"
+            @click="createRegistration"
+            :loading="isLoading"
+          >
+            Cập nhật
+          </VBtn>
+        </VCardActions>
       </VCard>
     </VDialog>
 
-    <div class="dock-div">
-      <VBtn class="dock-button" color="success" @click="">
-        <VIcon icon="bx-upload" class="me-2" /> | Upload file csv
-      </VBtn>
-      <VBtn @click="openNewDialog" class="dock-button ms-2">
-        <VIcon icon="bxs-user-plus" class="me-2" /> | Đăng ký
-      </VBtn>
-    </div>
-  </div>
+    <!-- Confirm Delete Dialog -->
+    <VDialog
+      v-model="confirmDeleteDialog"
+      max-width="500px"
+    >
+      <VCard v-if="selectedProduct">
+        <VCardTitle class="text-h5">
+          Xác nhận xóa đăng ký
+        </VCardTitle>
+        <VCardText>
+          Bạn có chắc chắn muốn xóa đăng ký của sản phẩm "{{ selectedProduct.name }}"?
+        </VCardText>
+        <VCardActions>
+          <VSpacer></VSpacer>
+          <VBtn
+            color="primary"
+            variant="text"
+            @click="confirmDeleteDialog = false"
+          >
+            Hủy
+          </VBtn>
+          <VBtn
+            color="error"
+            @click="deleteRegistration"
+            :loading="isLoading"
+          >
+            Xác nhận xóa
+          </VBtn>
+        </VCardActions>
+      </VCard>
+    </VDialog>
+  </section>
 </template>
 
 <style scoped>
 .dock-div {
   position: fixed; /* Cố định vị trí */
-  top: 100px; /* Cách phía trên 20px */
-  right: 50px; /* Cách phía phải 20px */
   z-index: 1000; /* Đảm bảo nút nằm trên các thành phần khác */
+  inset-block-start: 100px; /* Cách phía trên 20px */
+  inset-inline-end: 50px; /* Cách phía phải 20px */
 }
+
 .dock-button {
   transition: all 0.3s ease; /* Hiệu ứng chuyển động mềm */
 }
+
 .dock-button:hover {
   transform: scale(1.1); /* Phóng to nhẹ khi hover */
 }

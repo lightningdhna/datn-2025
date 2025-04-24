@@ -1,367 +1,289 @@
 <script setup lang="ts">
+import { formatDate, formatPrice } from "@/utils/formatters";
+import { getAllProductsBySupplier } from "@/utils/product-api";
+import { getRegistrationsByCurrentDropshipper } from "@/utils/registration-api";
+import { getSupplierById } from "@/utils/supplier-api";
+import { getWarehousesBySupplier } from "@/utils/warehouse-api";
+import { onMounted, ref } from "vue";
+import { useRouter } from "vue-router";
+import { useToast } from "vue-toastification";
+
 const props = defineProps({
   id: {
     type: String,
     required: true,
   },
 });
-const supplierName = ref("Ncc1 - Tên nhà cung cấp");
-const warehouseNumber = ref<number>(4);
-const producdtNumber = ref<number>(20);
-const activeTab = ref("one");
-
-const productList = [
-  { id: "SP001", name: "Táo", quantityLeft: 50, quantitySold: 20 },
-  { id: "SP002", name: "Cam", quantityLeft: 30, quantitySold: 15 },
-  { id: "SP003", name: "Chuối", quantityLeft: 20, quantitySold: 10 },
-  { id: "SP004", name: "Xoài", quantityLeft: 15, quantitySold: 5 },
-  { id: "SP005", name: "Dưa hấu", quantityLeft: 25, quantitySold: 12 },
-  { id: "SP006", name: "Lê", quantityLeft: 10, quantitySold: 8 },
-  { id: "SP007", name: "Ổi", quantityLeft: 40, quantitySold: 18 },
-  { id: "SP008", name: "Mận", quantityLeft: 35, quantitySold: 22 },
-  { id: "SP009", name: "Dứa", quantityLeft: 18, quantitySold: 9 },
-  { id: "SP010", name: "Nho", quantityLeft: 22, quantitySold: 11 },
-  { id: "SP011", name: "Bưởi", quantityLeft: 60, quantitySold: 30 },
-  { id: "SP012", name: "Chanh", quantityLeft: 45, quantitySold: 25 },
-  { id: "SP013", name: "Quýt", quantityLeft: 12, quantitySold: 6 },
-  { id: "SP014", name: "Dâu tây", quantityLeft: 28, quantitySold: 14 },
-  { id: "SP015", name: "Kiwi", quantityLeft: 33, quantitySold: 17 },
-  { id: "SP016", name: "Lựu", quantityLeft: 50, quantitySold: 20 },
-  { id: "SP017", name: "Đào", quantityLeft: 30, quantitySold: 15 },
-  { id: "SP018", name: "Mít", quantityLeft: 20, quantitySold: 10 },
-  { id: "SP019", name: "Na", quantityLeft: 15, quantitySold: 5 },
-  { id: "SP020", name: "Sầu riêng", quantityLeft: 25, quantitySold: 12 },
-  { id: "SP021", name: "Me", quantityLeft: 10, quantitySold: 8 },
-  { id: "SP022", name: "Chôm chôm", quantityLeft: 40, quantitySold: 18 },
-  { id: "SP023", name: "Vải", quantityLeft: 35, quantitySold: 22 },
-  { id: "SP024", name: "Măng cụt", quantityLeft: 18, quantitySold: 9 },
-  { id: "SP025", name: "Thanh long", quantityLeft: 22, quantitySold: 11 },
-  { id: "SP026", name: "Dừa", quantityLeft: 60, quantitySold: 30 },
-  { id: "SP027", name: "Táo tàu", quantityLeft: 45, quantitySold: 25 },
-  { id: "SP028", name: "Hồng xiêm", quantityLeft: 12, quantitySold: 6 },
-  { id: "SP029", name: "Cóc", quantityLeft: 28, quantitySold: 14 },
-  { id: "SP030", name: "Khế", quantityLeft: 33, quantitySold: 17 },
-];
-
-const headers1 = [
-  { title: "Tên sản phẩm", key: "name" },
-  { title: "Mã sản phẩm", key: "id" },
-  { title: "Số lượng còn", key: "quantityLeft" },
-  { title: "Số lượng đã bán", key: "quantitySold" },
-  { title: "", key: "action" },
-];
-
-const warehouseList = [
-  {
-    id: "WH001",
-    name: "Kho Hà Nội",
-    location: "Hà Nội",
-    productNumber: 100,
-    productList: [
-      { id: "P001", name: "Táo" },
-      { id: "P002", name: "Cam" },
-      { id: "P003", name: "Chuối" },
-      { id: "P004", name: "Xoài" },
-      { id: "P005", name: "Dưa hấu" },
-    ],
-  },
-  {
-    id: "WH002",
-    name: "Kho TP.HCM",
-    location: "TP.HCM",
-    productNumber: 0,
-    productList: [],
-  },
-  {
-    id: "WH003",
-    name: "Kho Đà Nẵng",
-    location: "Đà Nẵng",
-    productNumber: 45,
-    productList: [
-      { id: "P006", name: "Ổi" },
-      { id: "P007", name: "Mận" },
-      { id: "P008", name: "Dứa" },
-      { id: "P009", name: "Nho" },
-      { id: "P010", name: "Bưởi" },
-    ],
-  },
-  {
-    id: "WH004",
-    name: "Kho Hải Phòng",
-    location: "Hải Phòng",
-    productNumber: 30,
-    productList: [
-      { id: "P011", name: "Chanh" },
-      { id: "P012", name: "Quýt" },
-      { id: "P013", name: "Dâu tây" },
-      { id: "P014", name: "Kiwi" },
-    ],
-  },
-  {
-    id: "WH005",
-    name: "Kho Cần Thơ",
-    location: "Cần Thơ",
-    productNumber: 60,
-    productList: [
-      { id: "P015", name: "Lựu" },
-      { id: "P016", name: "Đào" },
-      { id: "P017", name: "Mít" },
-      { id: "P018", name: "Na" },
-      { id: "P019", name: "Sầu riêng" },
-    ],
-  },
-  {
-    id: "WH006",
-    name: "Kho Bình Dương",
-    location: "Bình Dương",
-    productNumber: 15,
-    productList: [
-      { id: "P020", name: "Me" },
-      { id: "P021", name: "Chôm chôm" },
-      { id: "P022", name: "Vải" },
-    ],
-  },
-  {
-    id: "WH007",
-    name: "Kho Đồng Nai",
-    location: "Đồng Nai",
-    productNumber: 80,
-    productList: [
-      { id: "P023", name: "Măng cụt" },
-      { id: "P024", name: "Thanh long" },
-      { id: "P025", name: "Dừa" },
-      { id: "P026", name: "Táo tàu" },
-    ],
-  },
-  {
-    id: "WH008",
-    name: "Kho Quảng Ninh",
-    location: "Quảng Ninh",
-    productNumber: 5,
-    productList: [{ id: "P027", name: "Hồng xiêm" }],
-  },
-  {
-    id: "WH009",
-    name: "Kho Huế",
-    location: "Thừa Thiên Huế",
-    productNumber: 28,
-    productList: [
-      { id: "P028", name: "Cóc" },
-      { id: "P029", name: "Khế" },
-    ],
-  },
-  {
-    id: "WH010",
-    name: "Kho Nha Trang",
-    location: "Khánh Hòa",
-    productNumber: 50,
-    productList: [
-      { id: "P030", name: "Táo" },
-      { id: "P031", name: "Cam" },
-      { id: "P032", name: "Chuối" },
-      { id: "P033", name: "Xoài" },
-      { id: "P034", name: "Dưa hấu" },
-    ],
-  },
-  {
-    id: "WH011",
-    name: "Kho Vũng Tàu",
-    location: "Bà Rịa - Vũng Tàu",
-    productNumber: 20,
-    productList: [
-      { id: "P035", name: "Mận" },
-      { id: "P036", name: "Ổi" },
-    ],
-  },
-  {
-    id: "WH012",
-    name: "Kho Lâm Đồng",
-    location: "Lâm Đồng",
-    productNumber: 70,
-    productList: [
-      { id: "P037", name: "Dâu tây" },
-      { id: "P038", name: "Kiwi" },
-      { id: "P039", name: "Chanh dây" },
-    ],
-  },
-  {
-    id: "WH013",
-    name: "Kho Bắc Ninh",
-    location: "Bắc Ninh",
-    productNumber: 10,
-    productList: [{ id: "P040", name: "Na" }],
-  },
-  {
-    id: "WH014",
-    name: "Kho Thanh Hóa",
-    location: "Thanh Hóa",
-    productNumber: 90,
-    productList: [
-      { id: "P041", name: "Xoài" },
-      { id: "P042", name: "Dưa hấu" },
-      { id: "P043", name: "Táo" },
-    ],
-  },
-  {
-    id: "WH015",
-    name: "Kho Nghệ An",
-    location: "Nghệ An",
-    productNumber: 35,
-    productList: [
-      { id: "P044", name: "Cam" },
-      { id: "P045", name: "Chuối" },
-    ],
-  },
-];
-
-const headers2 = [
-  { title: "", key: "data-table-expand" },
-  { title: "Tên kho", key: "name" },
-  { title: "Mã kho", key: "id" },
-  { title: "Địa chỉ", key: "location" },
-  { title: "Số lượng mặt hàng", key: "productNumber" },
-  { title: "", key: "action" },
-];
 
 const router = useRouter();
-const handleRowClick1 = (row: any) => {
-  console.log(typeof row);
-  console.log(row);
-  console.log(row.name, row.id);
+const toast = useToast();
+const isLoading = ref(true);
+
+const supplier = ref({
+  id: "",
+  name: "",
+});
+
+// Lists for tables
+const warehouseList = ref<any[]>([]);
+const productList = ref<any[]>([]);
+const registeredProducts = ref<Record<string, boolean>>({});
+
+// Tab management
+const activeTab = ref("one");
+const search = ref("");
+
+// Fetch supplier information and related data
+const fetchSupplierInfo = async (id: string) => {
+  isLoading.value = true;
+  try {
+    // Get basic supplier info
+    const supplierResult = await getSupplierById(id);
+    if (!supplierResult.success) {
+      toast.error(`Không thể tải thông tin nhà cung cấp: ${
+        'message' in supplierResult ? supplierResult.message : "Lỗi không xác định"
+      }`);
+      router.push("/dropshipper/supplier");
+      return;
+    }
+    
+    if ('data' in supplierResult) {
+      supplier.value = { ...supplierResult.data };
+    }
+
+    // Get warehouses
+    const warehouseResult = await getWarehousesBySupplier(id);
+    if (warehouseResult.success && 'data' in warehouseResult) {
+      warehouseList.value = warehouseResult.data.map((warehouse: any) => ({
+        id: warehouse.id,
+        name: warehouse.name,
+        location: `X:${warehouse.locationX.toFixed(2)}, Y:${warehouse.locationY.toFixed(2)}`,
+        capacity: warehouse.capacity,
+      }));
+    } else {
+      toast.warning("Không thể tải danh sách kho hàng");
+    }
+
+    // Get products
+    const productResult = await getAllProductsBySupplier(id);
+    if (productResult.success && 'data' in productResult) {
+      productList.value = productResult.data;
+    } else {
+      toast.warning("Không thể tải danh sách sản phẩm");
+    }
+
+    // Get current dropshipper registrations to mark registered products
+    const registrationsResult = await getRegistrationsByCurrentDropshipper();
+    if (registrationsResult.success && 'data' in registrationsResult) {
+      const registrations = registrationsResult.data;
+      registeredProducts.value = {};
+      
+      registrations.forEach((reg: any) => {
+        registeredProducts.value[reg.productId] = true;
+      });
+    }
+  } catch (error) {
+    console.error("Lỗi khi lấy thông tin nhà cung cấp:", error);
+    toast.error("Đã xảy ra lỗi khi tải dữ liệu nhà cung cấp");
+  } finally {
+    isLoading.value = false;
+  }
+};
+
+// Table headers
+const warehouseHeaders = [
+  { title: "Tên kho", key: "name" },
+  { title: "Vị trí", key: "location" },
+  { title: "Sức chứa", key: "capacity", align: "end" },
+  { title: "Chi tiết", key: "action", align: "center" },
+] as const;
+
+const productHeaders = [
+  { title: "Sản phẩm", key: "name" },
+  { title: "Giá", key: "price", align: "end" },
+  { title: "Ngày cập nhật", key: "date" },
+  { title: "Trạng thái", key: "status", align: "center" },
+  { title: "Chi tiết", key: "action", align: "center" },
+] as const;
+
+// Initialize component
+onMounted(() => {
+  if (props.id) {
+    fetchSupplierInfo(props.id);
+  }
+});
+
+// Refresh data
+const refreshData = async () => {
+  if (props.id) {
+    await fetchSupplierInfo(props.id);
+    toast.success("Đã làm mới dữ liệu nhà cung cấp");
+  }
+};
+
+// Check registration status
+const getRegistrationStatus = (productId: string) => {
+  return registeredProducts.value[productId] ? "Đã đăng ký" : "Chưa đăng ký";
+};
+
+// View warehouse details
+const viewWarehouseDetails = (warehouseId: string) => {
+  router.push(`/dropshipper/warehouse-info/${warehouseId}`);
+};
+
+// View product details
+const viewProductDetails = (productId: string) => {
+  router.push(`/dropshipper/product-info/${productId}`);
 };
 </script>
 
 <template>
-  <VCard>
-    <VCardTitle class="d-flex align-center">
-      <VIcon icon="bx-buildings" size="2rem" class="me-2" />
-      <span>Thông tin Nhà cung cấp</span>
-    </VCardTitle>
+  <section>
+    <VCard>
+      <!-- HEADER -->
+      <VCardItem>
+        <VCardTitle class="text-h5 d-flex align-center">
+          <VIcon icon="bx-store" class="me-2" />
+          Thông tin nhà cung cấp
+          <VSpacer />
+          <VBtn
+            icon
+            size="small"
+            variant="text"
+            color="default"
+            @click="refreshData"
+          >
+            <VIcon icon="bx-refresh" />
+          </VBtn>
+        </VCardTitle>
+      </VCardItem>
 
-    <VCardText class="mt-6">
-      <VRow>
-        <VCol cols="12" sm="3">
-          <div class="text-button">Tên Nhà cung cấp :</div>
-        </VCol>
-        <VCol cols="12" sm="4">
-          <div class="text-button">{{ supplierName }}</div>
-        </VCol>
-      </VRow>
-      <VRow>
-        <VCol cols="12" sm="3">
-          <div class="text-button">Mã nhà cung cấp :</div>
-        </VCol>
-        <VCol cols="12" sm="4">
-          <div class="text-button">{{ props.id }}</div>
-        </VCol>
-      </VRow>
-      <VRow>
-        <VCol cols="12" sm="3">
-          <div class="text-button">Số lượng sản phẩm :</div>
-        </VCol>
-        <VCol cols="12" sm="4">
-          <div class="text-button">{{ producdtNumber }}</div>
-        </VCol>
-      </VRow>
-      <VRow>
-        <VCol cols="12" sm="3">
-          <div class="text-button">Số lượng kho :</div>
-        </VCol>
-        <VCol cols="12" sm="4">
-          <div class="text-button">{{ warehouseNumber }}</div>
-        </VCol>
-      </VRow>
-    </VCardText>
+      <VDivider />
 
-    <VCard class="mt-3">
-      <v-tabs v-model="activeTab">
-        <v-tab value="one">
-          <div class="d-flex align-center">
-            <VIcon icon="bx-package" size="1.8rem" class="me-2" />
-            <span>Danh sách mặt hàng</span>
-          </div>
-        </v-tab>
-        <v-tab value="two">
-          <div class="d-flex align-center">
-            <VIcon icon="bx-buildings" size="1.8rem" class="me-2" />
-            <span>Danh sách kho hàng</span>
-          </div></v-tab
-        >
-      </v-tabs>
+      <VCardText>
+        <VRow v-if="isLoading">
+          <VCol cols="12" class="text-center">
+            <VProgressCircular indeterminate color="primary" />
+          </VCol>
+        </VRow>
 
-      <v-card-text>
-        <v-tabs-window v-model="activeTab">
-          <v-tabs-window-item value="one">
-            <VCard>
-              <VCardText>
-                <VDataTable
-                  class="mt-1"
-                  :headers="headers1"
-                  :items="productList"
-                  :items-per-page="20"
-                  @click:row="handleRowClick1"
+        <div v-else>
+          <!-- Supplier Info -->
+          <VRow>
+            <VCol cols="12" md="6">
+              <div class="d-flex align-center mb-4">
+                <div
+                  class="d-flex flex-column justify-center me-6"
+                  style="gap: 0.5rem;"
                 >
-                  <template #item.action="{ item }">
-                    <IconBtn>
-                      <VIcon
-                        icon="bx-info-circle"
-                        @click="router.push(`../product-info/${item.id}`)"
-                      />
-                    </IconBtn>
-                  </template>
-                </VDataTable>
-              </VCardText>
-            </VCard>
-          </v-tabs-window-item>
+                  <h3 class="text-h6">{{ supplier.name }}</h3>
+                  <p class="text-caption">ID: {{ supplier.id }}</p>
+                </div>
+              </div>
+            </VCol>
+          </VRow>
 
-          <v-tabs-window-item value="two">
-            <VCard>
-              <VCardText>
-                <VDataTable
-                  class="mt-1"
-                  :headers="headers2"
-                  :items="warehouseList"
-                  :items-per-page="20"
-                  expand-on-click
-                >
-                  <template #expanded-row="slotProps">
-                    <tr class="v-data-table__tr">
-                      <td :colspan="headers2.length">
-                        <div class = "ms-10">
-                          <div>Danh sách sản phẩm</div>
-                          <div class="d-flex space-between gap-2">
-                            <div
-                              v-for="product in slotProps.item.productList"
-                              :key="product.id"
-                              class="mb-1"
-                            >
-                              <a
-                                href="#"
-                                @click.prevent="
-                                  router.push(`../product-info/${product.id}`)
-                                "
-                                class="text-decoration-none text-primary"
-                              >
-                                {{ product.name }}
-                              </a>
-                            </div>
-                          </div>
-                        </div>
-                      </td>
-                    </tr>
-                  </template>
+          <!-- Tabs -->
+          <VTabs v-model="activeTab" class="mb-5">
+            <VTab value="one">Kho hàng</VTab>
+            <VTab value="two">Sản phẩm</VTab>
+          </VTabs>
 
-                  <template #item.action="{ item }">
-                    <IconBtn>
-                      <VIcon icon="bx-info-circle" />
-                    </IconBtn>
-                  </template>
-                </VDataTable>
-              </VCardText>
-            </VCard>
-          </v-tabs-window-item>
-        </v-tabs-window>
-      </v-card-text>
+          <VWindow v-model="activeTab">
+            <!-- Warehouses Tab -->
+            <VWindowItem value="one">
+              <div class="d-flex align-center mb-4">
+                <h4 class="text-h6">Danh sách kho hàng</h4>
+                <VSpacer />
+                <VTextField
+                  v-model="search"
+                  density="compact"
+                  placeholder="Tìm kiếm"
+                  prepend-inner-icon="bx-search"
+                  style="max-inline-size: 300px;"
+                  hide-details
+                />
+              </div>
+
+              <VDataTableServer
+                :headers="warehouseHeaders"
+                :items="warehouseList"
+                :search="search"
+                :loading="isLoading"
+                class="elevation-1"
+                item-value="id"
+              >
+                <!-- Action column -->
+                <template #item.action="{ item }">
+                  <VBtn
+                    icon
+                    variant="text"
+                    size="small"
+                    color="primary"
+                    @click="viewWarehouseDetails(item.id)"
+                  >
+                    <VIcon icon="bx-link-external" />
+                  </VBtn>
+                </template>
+              </VDataTableServer>
+            </VWindowItem>
+
+            <!-- Products Tab -->
+            <VWindowItem value="two">
+              <div class="d-flex align-center mb-4">
+                <h4 class="text-h6">Danh sách sản phẩm</h4>
+                <VSpacer />
+                <VTextField
+                  v-model="search"
+                  density="compact"
+                  placeholder="Tìm kiếm"
+                  prepend-inner-icon="bx-search"
+                  style="max-inline-size: 300px;"
+                  hide-details
+                />
+              </div>
+
+              <VDataTableServer
+                :headers="productHeaders"
+                :items="productList"
+                :search="search"
+                :loading="isLoading"
+                class="elevation-1"
+                item-value="id"
+              >
+                <template #item.price="{ item }">
+                  {{ formatPrice(item.price) }}
+                </template>
+
+                <template #item.date="{ item }">
+                  {{ formatDate(item.date) }}
+                </template>
+
+                <template #item.status="{ item }">
+                  <VChip
+                    :color="registeredProducts[item.id] ? 'success' : 'warning'"
+                    size="small"
+                  >
+                    {{ getRegistrationStatus(item.id) }}
+                  </VChip>
+                </template>
+
+                <template #item.action="{ item }">
+                  <VBtn
+                    icon
+                    variant="text"
+                    size="small"
+                    color="primary"
+                    @click="viewProductDetails(item.id)"
+                  >
+                    <VIcon icon="bx-link-external" />
+                  </VBtn>
+                </template>
+              </VDataTableServer>
+            </VWindowItem>
+          </VWindow>
+        </div>
+      </VCardText>
     </VCard>
-  </VCard>
+  </section>
 </template>

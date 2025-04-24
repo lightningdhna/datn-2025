@@ -2,9 +2,9 @@
 import { getSupplierId } from "@/utils/local-storage";
 import { getAllProductsBySupplier } from "@/utils/product-api";
 import {
-  getCurrentSupplierInfo,
-  getCurrentSupplierSummary,
-  updateCurrentSupplier,
+getCurrentSupplierInfo,
+getCurrentSupplierSummary,
+updateCurrentSupplier,
 } from "@/utils/supplier-api";
 import { onMounted, ref } from "vue";
 import { useToast } from "vue-toastification";

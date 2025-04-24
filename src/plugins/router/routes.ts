@@ -133,6 +133,15 @@ export const routes = [
         component: () => import("@/pages/dropshipper/func/product.vue"),
       },
       {
+        path: "func/product",
+        component: () => import("@/pages/dropshipper/func/product.vue"),
+      },
+      {
+        path: "func/product-info/:id",
+        component: () => import("@/pages/dropshipper/func/product-info.vue"),
+        props: true,
+      },
+      {
         path: "supplier",
         component: () => import("@/pages/dropshipper/func/supplier.vue"),
       },

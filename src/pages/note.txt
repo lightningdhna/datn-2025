@@ -1,0 +1,2195 @@
+prisma schema
+```
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_DATABASE_URL")
+}
+
+model User {
+  id    Int     @id @default(autoincrement())
+  email String  @unique
+  name  String?
+}
+
+model Supplier {
+  id   String  @id @default(uuid())
+  name String
+
+  products   Product[]
+  warehouses Warehouse[]
+}
+
+model Product {
+  id         String   @id @default(uuid())
+  name       String
+  date       DateTime
+  supplierId String
+  price      Int      @default(0)
+  note       String?
+  weight     Float    @default(0) // Số thực không âm
+  volume     Float    @default(0) // Số thực không âm
+
+  supplier   Supplier @relation(fields: [supplierId], references: [id])
+  warehouseProducts WarehouseProduct[]
+  orders     Order[]
+  registrations Registration[]
+}
+
+model Warehouse {
+  id         String   @id @default(uuid())
+  name       String
+  locationX  Float    // Tọa độ X (số thực)
+  locationY  Float    // Tọa độ Y (số thực)
+  capacity   Int      @default(0) // Số nguyên không âm
+  timeToLoad Int      @default(0) // Thời gian xử lý tại kho (phút)
+  supplierId String
+
+  supplier   Supplier @relation(fields: [supplierId], references: [id])
+  warehouseProducts WarehouseProduct[]
+  plans      Plan[]
+}
+// Thêm địa chỉ vào đây
+
+model WarehouseProduct {
+  warehouseId String
+  productId   String
+  quantity    Int      @default(0) // Số nguyên không âm
+
+  warehouse   Warehouse @relation(fields: [warehouseId], references: [id])
+  product     Product   @relation(fields: [productId], references: [id])
+
+  @@id([warehouseId, productId])
+}
+
+model Truck {
+  id           String  @id @default(uuid())
+  name         String
+  type         String
+  maxWeight    Float    @default(0) // Số thực không âm
+  maxVolume    Float    @default(0) // Số thực không âm
+  averageSpeed Float    @default(0) // Số thực không âm
+  timeActive   DateTime // Start time
+  timeInactive DateTime // End time
+
+  plans        Plan[]
+}
+
+model Dropshipper {
+  id   String @id @default(uuid())
+  name String
+
+  registrations Registration[]
+  orders        Order[]
+}
+
+model Registration {
+  dropshipperId String
+  productId     String
+  commissionFee Float    // Phí hoa hồng (commission fee)
+  createdDate   DateTime @default(now())
+  status        Int      // 0: pending, 1: approved, 2: rejected
+
+  dropshipper Dropshipper @relation(fields: [dropshipperId], references: [id])
+  product     Product     @relation(fields: [productId], references: [id])
+
+  @@id([dropshipperId, productId])
+}
+
+model Order {
+  id            String   @id @default(uuid())
+  productId     String
+  dropshipperId String?  // Thêm dropshipperId (có thể null nếu không phải đơn dropship)
+  timeCreated   DateTime
+  status        Int      // Có thể dùng enum nếu muốn
+  quantity      Int      @default(0) // Số nguyên không âm
+  volume        Float    @default(0) // Số thực không âm
+  weight        Float    @default(0) // Số thực không âm
+  locationX     Float    // Tọa độ X (số thực)
+  locationY     Float    // Tọa độ Y (số thực)
+  note          String?
+
+  product      Product      @relation(fields: [productId], references: [id])
+  dropshipper  Dropshipper? @relation(fields: [dropshipperId], references: [id])
+  plans        Plan[]
+}
+
+model Plan {
+  id           String   @id @default(uuid())
+  planDate     DateTime
+  status       Int      // 0: waiting, 1: on-going, 2: in progress, 3: completed
+  truckId      String
+  orderId      String
+  type         Int      // 1: load, 2: unload
+  warehouseId  String?  // Chỉ cần nếu type = 1
+  startTime    DateTime
+  executionTime Int     // Đơn vị: phút
+
+  truck        Truck    @relation(fields: [truckId], references: [id])
+  order        Order    @relation(fields: [orderId], references: [id])
+  warehouse    Warehouse? @relation(fields: [warehouseId], references: [id])
+}
+```
+dto for dropshipper api:
+```
+import { ApiProperty } from '@nestjs/swagger';
+
+export class DropshipperSummaryDto {
+  @ApiProperty({
+    description: 'ID của dropshipper',
+    example: '3bc04716-1a42-4d12-983f-5b0941d8d831',
+  })
+  dropshipperId!: string;
+
+  @ApiProperty({
+    description: 'Tên của dropshipper',
+    example: 'Nguyễn Văn A',
+  })
+  dropshipperName!: string;
+
+  @ApiProperty({
+    description: 'Số lượng nhà cung cấp liên kết',
+    example: 5,
+  })
+  supplierCount!: number;
+
+  @ApiProperty({
+    description: 'Số lượng sản phẩm đăng ký bán',
+    example: 25,
+  })
+  registeredProductCount!: number;
+
+  @ApiProperty({
+    description: 'Số lượng đơn hàng đã hoàn thành trong tháng',
+    example: 150,
+  })
+  completedOrderCount!: number;
+
+  @ApiProperty({
+    description: 'Số lượng sản phẩm đã bán trong tháng',
+    example: 450,
+  })
+  soldProductQuantity!: number;
+
+  @ApiProperty({
+    description: 'Số lượng đơn hàng đã hoàn thành (toàn thời gian)',
+    example: 1200,
+  })
+  completedOrderCountAllTime!: number;
+
+  @ApiProperty({
+    description: 'Số lượng sản phẩm đã bán (toàn thời gian)',
+    example: 3600,
+  })
+  soldProductQuantityAllTime!: number;
+
+  @ApiProperty({
+    description: 'Tháng của thống kê',
+    example: 4,
+  })
+  month!: number;
+
+  @ApiProperty({
+    description: 'Năm của thống kê',
+    example: 2025,
+  })
+  year!: number;
+}
+
+export class SupplierDropshipperSummaryDto {
+  @ApiProperty({
+    description: 'ID của dropshipper',
+    example: '3bc04716-1a42-4d12-983f-5b0941d8d831',
+  })
+  dropshipperId!: string;
+
+  @ApiProperty({
+    description: 'Tên của dropshipper',
+    example: 'Nguyễn Văn A',
+  })
+  dropshipperName!: string;
+
+  @ApiProperty({
+    description: 'ID của nhà cung cấp',
+    example: '3bc04716-1a42-4d12-983f-5b0941d8d831',
+  })
+  supplierId!: string;
+
+  @ApiProperty({
+    description: 'Tên của nhà cung cấp',
+    example: 'Công ty TNHH ABC',
+  })
+  supplierName!: string;
+
+  @ApiProperty({
+    description: 'Số lượng sản phẩm đăng ký bán từ nhà cung cấp này',
+    example: 10,
+  })
+  registeredProductCount!: number;
+
+  @ApiProperty({
+    description:
+      'Số lượng đơn hàng đã hoàn thành trong tháng với sản phẩm từ nhà cung cấp này',
+    example: 45,
+  })
+  completedOrderCount!: number;
+
+  @ApiProperty({
+    description: 'Số lượng sản phẩm đã bán trong tháng từ nhà cung cấp này',
+    example: 120,
+  })
+  soldProductQuantity!: number;
+
+  @ApiProperty({
+    description:
+      'Số lượng đơn hàng đã hoàn thành (toàn thời gian) với sản phẩm từ nhà cung cấp này',
+    example: 320,
+  })
+  completedOrderCountAllTime!: number;
+
+  @ApiProperty({
+    description:
+      'Số lượng sản phẩm đã bán (toàn thời gian) từ nhà cung cấp này',
+    example: 980,
+  })
+  soldProductQuantityAllTime!: number;
+
+  @ApiProperty({
+    description: 'Tháng của thống kê',
+    example: 4,
+  })
+  month!: number;
+
+  @ApiProperty({
+    description: 'Năm của thống kê',
+    example: 2025,
+  })
+  year!: number;
+}
+```
+dropshipper api controller
+```
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  NotFoundException,
+  ParseUUIDPipe,
+  HttpCode,
+  HttpStatus,
+  BadRequestException,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiParam,
+  ApiBody,
+  ApiResponse,
+} from '@nestjs/swagger';
+import { DropshipperService } from './dropshipper.service';
+import { CreateDropshipperDto } from './dto/create-dropshipper.dto';
+import { UpdateDropshipperDto } from './dto/update-dropshipper.dto';
+import {
+  DropshipperSummaryDto,
+  SupplierDropshipperSummaryDto,
+} from './dto/summary-dropshipper.dto';
+import { isEqual, pickBy } from 'lodash';
+import { Prisma } from '@prisma/client';
+
+@ApiTags('dropshipper')
+@Controller('dropshipper')
+export class DropshipperController {
+  constructor(private readonly dropshipperService: DropshipperService) {}
+
+  // POST /dropshipper - Tạo mới dropshipper
+  @Post()
+  @ApiOperation({ summary: 'Tạo mới dropshipper' })
+  @ApiBody({ type: CreateDropshipperDto })
+  @ApiResponse({ status: 201, description: 'Dropshipper đã được tạo.' })
+  @ApiResponse({ status: 400, description: 'Dữ liệu không hợp lệ.' })
+  async create(@Body() createDropshipperDto: CreateDropshipperDto) {
+    return await this.dropshipperService.create(createDropshipperDto);
+  }
+
+  // GET /dropshipper - Lấy tất cả dropshipper
+  @Get()
+  @ApiOperation({ summary: 'Lấy tất cả dropshipper' })
+  @ApiResponse({ status: 200, description: 'Danh sách tất cả dropshipper.' })
+  async findAll() {
+    return await this.dropshipperService.findAll();
+  }
+
+  // GET /dropshipper/by-product/:productId - Lấy dropshipper theo sản phẩm
+  @Get('by-product/:productId')
+  @ApiOperation({ summary: 'Lấy danh sách dropshipper bán sản phẩm cụ thể' })
+  @ApiParam({
+    name: 'productId',
+    description: 'ID của sản phẩm (UUID)',
+    type: String,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Danh sách dropshipper (có thể rỗng).',
+  })
+  async findByProduct(@Param('productId', ParseUUIDPipe) productId: string) {
+    return await this.dropshipperService.findByProduct(productId);
+  }
+
+  // GET /dropshipper/by-supplier/:supplierId - Lấy dropshipper theo nhà cung cấp
+  @Get('by-supplier/:supplierId')
+  @ApiOperation({
+    summary: 'Lấy danh sách dropshipper bán sản phẩm của nhà cung cấp',
+  })
+  @ApiParam({
+    name: 'supplierId',
+    description: 'ID của nhà cung cấp (UUID)',
+    type: String,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Danh sách dropshipper (có thể rỗng).',
+  })
+  async findBySupplier(@Param('supplierId', ParseUUIDPipe) supplierId: string) {
+    return await this.dropshipperService.findBySupplier(supplierId);
+  }
+
+  // GET /dropshipper/:id - Lấy thông tin chi tiết của một dropshipper
+  @Get(':id')
+  @ApiOperation({ summary: 'Lấy thông tin chi tiết của một dropshipper' })
+  @ApiParam({
+    name: 'id',
+    description: 'ID của dropshipper (UUID)',
+    type: String,
+  })
+  @ApiResponse({ status: 200, description: 'Thông tin chi tiết dropshipper.' })
+  @ApiResponse({ status: 404, description: 'Không tìm thấy dropshipper.' })
+  async findOne(@Param('id', ParseUUIDPipe) id: string) {
+    const dropshipper = await this.dropshipperService.findOne(id);
+    if (dropshipper === null) {
+      throw new NotFoundException(`Không tìm thấy Dropshipper với ID ${id}`);
+    }
+    return dropshipper;
+  }
+
+  // GET /dropshipper/:id/summary - Lấy thông tin tổng hợp về một dropshipper
+  @Get(':id/summary')
+  @ApiOperation({ summary: 'Lấy thông tin tổng hợp về một dropshipper' })
+  @ApiParam({
+    name: 'id',
+    description: 'ID của dropshipper (UUID)',
+    type: String,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Thông tin tổng hợp về dropshipper.',
+    type: DropshipperSummaryDto,
+  })
+  @ApiResponse({ status: 404, description: 'Không tìm thấy dropshipper.' })
+  async getSummary(@Param('id', ParseUUIDPipe) id: string) {
+    const summary = await this.dropshipperService.getSummaryInfo(id);
+    if (summary === null) {
+      throw new NotFoundException(`Không tìm thấy Dropshipper với ID ${id}`);
+    }
+    return summary;
+  }
+
+  // GET /dropshipper/:id/supplier/:supplierId/summary - Lấy thông tin tổng hợp về dropshipper với một nhà cung cấp cụ thể
+  @Get(':id/supplier/:supplierId/summary')
+  @ApiOperation({
+    summary:
+      'Lấy thông tin tổng hợp về dropshipper với một nhà cung cấp cụ thể',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'ID của dropshipper (UUID)',
+    type: String,
+  })
+  @ApiParam({
+    name: 'supplierId',
+    description: 'ID của nhà cung cấp (UUID)',
+    type: String,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Thông tin tổng hợp về dropshipper với nhà cung cấp cụ thể.',
+    type: SupplierDropshipperSummaryDto,
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Không tìm thấy dropshipper hoặc nhà cung cấp.',
+  })
+  async getSupplierSummary(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('supplierId', ParseUUIDPipe) supplierId: string,
+  ) {
+    const summary = await this.dropshipperService.getSupplierSummaryInfo(
+      id,
+      supplierId,
+    );
+    if (summary === null) {
+      throw new NotFoundException(
+        `Không tìm thấy Dropshipper với ID ${id} hoặc Supplier với ID ${supplierId}`,
+      );
+    }
+    return summary;
+  }
+
+  // PATCH /dropshipper/:id - Cập nhật thông tin dropshipper
+  @Patch(':id')
+  @ApiOperation({ summary: 'Cập nhật thông tin dropshipper' })
+  @ApiParam({
+    name: 'id',
+    description: 'ID của dropshipper (UUID)',
+    type: String,
+  })
+  @ApiBody({ type: UpdateDropshipperDto })
+  @ApiResponse({
+    status: 200,
+    description:
+      'Dropshipper đã được cập nhật thành công hoặc không có gì thay đổi.',
+  })
+  @ApiResponse({ status: 404, description: 'Không tìm thấy dropshipper.' })
+  @ApiResponse({ status: 400, description: 'Dữ liệu không hợp lệ.' })
+  async update(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() updateDropshipperDto: UpdateDropshipperDto,
+  ) {
+    // Kiểm tra sự tồn tại trước khi cập nhật
+    const existingDropshipper = await this.dropshipperService.findOne(id);
+    if (existingDropshipper === null) {
+      throw new NotFoundException(`Không tìm thấy Dropshipper với ID ${id}`);
+    }
+
+    // Kiểm tra xem có trường nào thực sự thay đổi không
+    const updatedFields = pickBy(updateDropshipperDto, (value, key) => {
+      return (
+        key in existingDropshipper && !isEqual(value, existingDropshipper[key])
+      );
+    });
+
+    if (Object.keys(updatedFields).length === 0) {
+      return {
+        statusCode: HttpStatus.OK,
+        message: 'Không có trường nào cần cập nhật.',
+        data: existingDropshipper,
+      };
+    }
+
+    return await this.dropshipperService.update(id, updatedFields);
+  }
+
+  // DELETE /dropshipper/:id - Xóa dropshipper
+  @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Xóa dropshipper' })
+  @ApiParam({
+    name: 'id',
+    description: 'ID của dropshipper (UUID)',
+    type: String,
+  })
+  @ApiResponse({
+    status: 204,
+    description: 'Dropshipper đã được xóa thành công.',
+  })
+  @ApiResponse({ status: 404, description: 'Không tìm thấy dropshipper.' })
+  @ApiResponse({ status: 400, description: 'Không thể xóa do ràng buộc.' })
+  async remove(@Param('id', ParseUUIDPipe) id: string) {
+    // Kiểm tra tồn tại trước
+    const dropshipperExists = await this.dropshipperService.findOne(id);
+    if (!dropshipperExists) {
+      throw new NotFoundException(`Không tìm thấy Dropshipper với ID ${id}`);
+    }
+
+    try {
+      await this.dropshipperService.remove(id);
+      // Không trả về gì cho 204 No Content
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        // Xử lý lỗi ràng buộc khóa ngoại
+        if (error.code === 'P2003' || error.code === 'P2014') {
+          throw new BadRequestException(
+            `Không thể xóa dropshipper với ID ${id} do có tham chiếu tồn tại (đăng ký, đơn hàng).`,
+          );
+        }
+      }
+      throw error; // Ném lại các lỗi khác
+    }
+  }
+}
+```
+dropshipper api service:
+```
+import { Injectable } from '@nestjs/common';
+import { PrismaService } from '../../prisma/prisma.service';
+import { CreateDropshipperDto } from './dto/create-dropshipper.dto';
+import { UpdateDropshipperDto } from './dto/update-dropshipper.dto';
+import { Dropshipper, Prisma } from '@prisma/client';
+
+@Injectable()
+export class DropshipperService {
+  constructor(private readonly prisma: PrismaService) {}
+
+  // Tạo mới dropshipper
+  async create(
+    createDropshipperDto: CreateDropshipperDto,
+  ): Promise<Dropshipper> {
+    return await this.prisma.dropshipper.create({
+      data: createDropshipperDto,
+    });
+  }
+
+  // Lấy tất cả dropshipper
+  async findAll(): Promise<Dropshipper[]> {
+    return await this.prisma.dropshipper.findMany();
+  }
+
+  // Lấy thông tin một dropshipper theo ID
+  async findOne(id: string): Promise<Dropshipper | null> {
+    return await this.prisma.dropshipper.findUnique({
+      where: { id },
+    });
+  }
+
+  // Cập nhật thông tin dropshipper
+  async update(
+    id: string,
+    updateDropshipperDto: UpdateDropshipperDto,
+  ): Promise<Dropshipper> {
+    return await this.prisma.dropshipper.update({
+      where: { id },
+      data: updateDropshipperDto,
+    });
+  }
+
+  // Xóa dropshipper
+  async remove(id: string): Promise<Dropshipper | null> {
+    try {
+      return await this.prisma.dropshipper.delete({
+        where: { id },
+      });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        // Ném lỗi để controller xử lý
+        throw error;
+      }
+      throw error;
+    }
+  }
+
+  // Lấy dropshipper theo sản phẩm (những người bán sản phẩm này)
+  async findByProduct(productId: string): Promise<Dropshipper[]> {
+    // Kiểm tra sản phẩm tồn tại
+    const productExists = await this.prisma.product.findUnique({
+      where: { id: productId },
+      select: { id: true },
+    });
+
+    if (!productExists) {
+      return []; // Trả về mảng rỗng nếu sản phẩm không tồn tại
+    }
+
+    // Lấy các đăng ký được phê duyệt (status = 1) cho sản phẩm này
+    const registrations = await this.prisma.registration.findMany({
+      where: {
+        productId,
+        status: 1, // Chỉ lấy những đăng ký đã được phê duyệt
+      },
+      include: {
+        dropshipper: true,
+      },
+    });
+
+    // Trích xuất các dropshipper từ kết quả
+    return registrations.map((registration) => registration.dropshipper);
+  }
+
+  // Lấy danh sách dropshipper theo supplierId (những người bán sản phẩm của nhà cung cấp này)
+  async findBySupplier(supplierId: string): Promise<Dropshipper[]> {
+    // Kiểm tra nhà cung cấp tồn tại
+    const supplierExists = await this.prisma.supplier.findUnique({
+      where: { id: supplierId },
+      select: { id: true },
+    });
+
+    if (!supplierExists) {
+      return []; // Trả về mảng rỗng nếu nhà cung cấp không tồn tại
+    }
+
+    // Lấy tất cả sản phẩm của nhà cung cấp
+    const products = await this.prisma.product.findMany({
+      where: { supplierId },
+      select: { id: true },
+    });
+
+    const productIds = products.map((p) => p.id);
+
+    if (productIds.length === 0) {
+      return []; // Trả về mảng rỗng nếu nhà cung cấp không có sản phẩm nào
+    }
+
+    // Lấy các đăng ký được phê duyệt cho các sản phẩm của nhà cung cấp
+    const registrations = await this.prisma.registration.findMany({
+      where: {
+        productId: { in: productIds },
+        status: 1, // Chỉ lấy những đăng ký đã được phê duyệt
+      },
+      include: {
+        dropshipper: true,
+      },
+      distinct: ['dropshipperId'],
+    });
+
+    // Trích xuất các dropshipper độc nhất từ kết quả
+    return registrations.map((registration) => registration.dropshipper);
+  }
+
+  // Lấy thông tin tổng hợp về một dropshipper
+  async getSummaryInfo(
+    dropshipperId: string,
+  ): Promise<Record<string, any> | null> {
+    // Kiểm tra dropshipper tồn tại
+    const dropshipper = await this.findOne(dropshipperId);
+    if (!dropshipper) {
+      return null; // Trả về null nếu dropshipper không tồn tại
+    }
+
+    // Lấy ngày đầu tiên và cuối cùng của tháng hiện tại
+    const now = new Date();
+    const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const lastDayOfMonth = new Date(
+      now.getFullYear(),
+      now.getMonth() + 1,
+      0,
+      23,
+      59,
+      59,
+    );
+
+    // 1. Lấy các đăng ký được phê duyệt của dropshipper
+    const registrations = await this.prisma.registration.findMany({
+      where: {
+        dropshipperId,
+        status: 1, // Đã được phê duyệt
+      },
+      include: {
+        product: {
+          include: {
+            supplier: true,
+          },
+        },
+      },
+    });
+
+    // 2. Số lượng nhà cung cấp liên kết (độc nhất)
+    const supplierMap = new Map<string, boolean>();
+    registrations.forEach((reg) => {
+      if (reg.product && reg.product.supplier) {
+        supplierMap.set(reg.product.supplier.id, true);
+      }
+    });
+    const supplierCount = supplierMap.size;
+
+    // 3. Số lượng sản phẩm đăng ký bán
+    const registeredProductCount = registrations.length;
+
+    // 4. Số lượng đơn hàng đã hoàn thành trong tháng
+    const completedOrdersThisMonth = await this.prisma.order.findMany({
+      where: {
+        dropshipperId,
+        status: 3, // Giả định status=3 là hoàn thành
+        timeCreated: {
+          gte: firstDayOfMonth,
+          lte: lastDayOfMonth,
+        },
+      },
+    });
+    const completedOrderCount = completedOrdersThisMonth.length;
+
+    // 5. Số lượng sản phẩm đã bán trong tháng
+    const soldProductQuantity = completedOrdersThisMonth.reduce(
+      (total, order) => total + order.quantity,
+      0,
+    );
+
+    // 6. Số lượng đơn hàng đã hoàn thành (toàn thời gian)
+    const completedOrdersAllTime = await this.prisma.order.findMany({
+      where: {
+        dropshipperId,
+        status: 3, // Giả định status=3 là hoàn thành
+      },
+    });
+    const completedOrderCountAllTime = completedOrdersAllTime.length;
+
+    // 7. Số lượng sản phẩm đã bán (toàn thời gian)
+    const soldProductQuantityAllTime = completedOrdersAllTime.reduce(
+      (total, order) => total + order.quantity,
+      0,
+    );
+
+    return {
+      dropshipperId: dropshipper.id,
+      dropshipperName: dropshipper.name,
+      supplierCount,
+      registeredProductCount,
+      completedOrderCount,
+      soldProductQuantity,
+      completedOrderCountAllTime,
+      soldProductQuantityAllTime,
+      month: now.getMonth() + 1, // +1 vì getMonth() trả về 0-11
+      year: now.getFullYear(),
+    };
+  }
+
+  // Lấy thông tin tổng hợp về một dropshipper với một nhà cung cấp cụ thể
+  async getSupplierSummaryInfo(
+    dropshipperId: string,
+    supplierId: string,
+  ): Promise<Record<string, any> | null> {
+    // Kiểm tra dropshipper và supplier tồn tại
+    const [dropshipper, supplier] = await Promise.all([
+      this.prisma.dropshipper.findUnique({
+        where: { id: dropshipperId },
+      }),
+      this.prisma.supplier.findUnique({
+        where: { id: supplierId },
+      }),
+    ]);
+
+    if (!dropshipper || !supplier) {
+      return null; // Trả về null nếu dropshipper hoặc supplier không tồn tại
+    }
+
+    // Lấy ngày đầu tiên và cuối cùng của tháng hiện tại
+    const now = new Date();
+    const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const lastDayOfMonth = new Date(
+      now.getFullYear(),
+      now.getMonth() + 1,
+      0,
+      23,
+      59,
+      59,
+    );
+
+    // 1. Lấy các sản phẩm của nhà cung cấp
+    const products = await this.prisma.product.findMany({
+      where: { supplierId },
+      select: { id: true },
+    });
+    const productIds = products.map((p) => p.id);
+
+    if (productIds.length === 0) {
+      // Nếu nhà cung cấp không có sản phẩm nào, trả về thông tin với số lượng là 0
+      return {
+        dropshipperId: dropshipper.id,
+        dropshipperName: dropshipper.name,
+        supplierId: supplier.id,
+        supplierName: supplier.name,
+        registeredProductCount: 0,
+        completedOrderCount: 0,
+        soldProductQuantity: 0,
+        completedOrderCountAllTime: 0,
+        soldProductQuantityAllTime: 0,
+        month: now.getMonth() + 1,
+        year: now.getFullYear(),
+      };
+    }
+
+    // 2. Lấy các đăng ký được phê duyệt của dropshipper với các sản phẩm của nhà cung cấp
+    const registrations = await this.prisma.registration.findMany({
+      where: {
+        dropshipperId,
+        productId: { in: productIds },
+        status: 1, // Đã được phê duyệt
+      },
+    });
+
+    // 3. Số lượng sản phẩm đăng ký bán từ nhà cung cấp này
+    const registeredProductCount = registrations.length;
+
+    // 4. Số lượng đơn hàng đã hoàn thành trong tháng với sản phẩm từ nhà cung cấp này
+    const completedOrdersThisMonth = await this.prisma.order.findMany({
+      where: {
+        dropshipperId,
+        productId: { in: productIds },
+        status: 3, // Giả định status=3 là hoàn thành
+        timeCreated: {
+          gte: firstDayOfMonth,
+          lte: lastDayOfMonth,
+        },
+      },
+    });
+    const completedOrderCount = completedOrdersThisMonth.length;
+
+    // 5. Số lượng sản phẩm đã bán trong tháng từ nhà cung cấp này
+    const soldProductQuantity = completedOrdersThisMonth.reduce(
+      (total, order) => total + order.quantity,
+      0,
+    );
+
+    // 6. Số lượng đơn hàng đã hoàn thành (toàn thời gian) với sản phẩm từ nhà cung cấp này
+    const completedOrdersAllTime = await this.prisma.order.findMany({
+      where: {
+        dropshipperId,
+        productId: { in: productIds },
+        status: 3, // Giả định status=3 là hoàn thành
+      },
+    });
+    const completedOrderCountAllTime = completedOrdersAllTime.length;
+
+    // 7. Số lượng sản phẩm đã bán (toàn thời gian) từ nhà cung cấp này
+    const soldProductQuantityAllTime = completedOrdersAllTime.reduce(
+      (total, order) => total + order.quantity,
+      0,
+    );
+
+    return {
+      dropshipperId: dropshipper.id,
+      dropshipperName: dropshipper.name,
+      supplierId: supplier.id,
+      supplierName: supplier.name,
+      registeredProductCount,
+      completedOrderCount,
+      soldProductQuantity,
+      completedOrderCountAllTime,
+      soldProductQuantityAllTime,
+      month: now.getMonth() + 1,
+      year: now.getFullYear(),
+    };
+  }
+}
+```
+
+product api dto:
+```
+import { ApiProperty } from '@nestjs/swagger';
+
+export class ProductSummaryInfoDto {
+  @ApiProperty({ description: 'ID của sản phẩm' })
+  productId!: string;
+
+  @ApiProperty({ description: 'Tên sản phẩm' })
+  productName!: string;
+
+  @ApiProperty({ description: 'Tổng số lượng hàng còn trong kho' })
+  totalStockQuantity!: number;
+
+  @ApiProperty({ description: 'Số kho còn hàng của sản phẩm này' })
+  warehouseCount!: number;
+
+  @ApiProperty({ description: 'Số dropshipper đã đăng ký bán sản phẩm' })
+  dropshipperCount!: number;
+
+  @ApiProperty({ description: 'Tổng số lượng sản phẩm đã bán được' })
+  totalSoldQuantity!: number;
+
+  @ApiProperty({ description: 'Tổng số đơn hàng đã hoàn thành' })
+  completedOrderCount!: number;
+
+  @ApiProperty({ description: 'Số lượng sản phẩm đã bán trong tháng hiện tại' })
+  monthlySoldQuantity!: number;
+
+  @ApiProperty({
+    description: 'Số đơn hàng đã hoàn thành trong tháng hiện tại',
+  })
+  monthlyCompletedOrderCount!: number;
+
+  @ApiProperty({ description: 'Tháng của thống kê' })
+  month!: number;
+
+  @ApiProperty({ description: 'Năm của thống kê' })
+  year!: number;
+}
+```
+```
+// Không dùng PartialType để kiểm soát rõ hơn các trường có thể cập nhật
+import { ApiPropertyOptional } from '@nestjs/swagger';
+import {
+  IsString,
+  IsOptional,
+  IsNotEmpty,
+  IsInt,
+  Min,
+  IsNumber,
+} from 'class-validator';
+
+export class UpdateProductDto {
+  // id: Lấy từ route parameter, không cập nhật qua body
+  // supplierId: Thường không thay đổi qua endpoint này
+  // date: Không cập nhật tự động ở đây
+
+  @ApiPropertyOptional({ description: 'Tên sản phẩm', example: 'Táo Đỏ Mỹ' })
+  @IsOptional()
+  @IsString({ message: 'Tên sản phẩm phải là chuỗi ký tự' })
+  @IsNotEmpty({ message: 'Tên sản phẩm không được để trống nếu được cung cấp' })
+  name?: string;
+
+  @ApiPropertyOptional({ description: 'Giá sản phẩm', example: 15000 })
+  @IsOptional()
+  @IsInt({ message: 'Giá sản phẩm phải là số nguyên' })
+  @Min(0, { message: 'Giá sản phẩm phải lớn hơn hoặc bằng 0' })
+  price?: number;
+
+  @ApiPropertyOptional({
+    description: 'Ghi chú về sản phẩm',
+    example: 'Hàng mới về',
+  })
+  @IsOptional()
+  @IsString({ message: 'Ghi chú sản phẩm phải là chuỗi ký tự' })
+  note?: string;
+
+  @ApiPropertyOptional({
+    description: 'Trọng lượng sản phẩm (kg)',
+    example: 0.25,
+  })
+  @IsOptional()
+  @IsNumber({}, { message: 'Trọng lượng phải là số' })
+  @Min(0, { message: 'Trọng lượng phải lớn hơn hoặc bằng 0' })
+  weight?: number;
+
+  @ApiPropertyOptional({
+    description: 'Thể tích sản phẩm (m³)',
+    example: 0.00012,
+  })
+  @IsOptional()
+  @IsNumber({}, { message: 'Thể tích phải là số' })
+  @Min(0, { message: 'Thể tích phải lớn hơn hoặc bằng 0' })
+  volume?: number;
+}
+```
+```
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import {
+  IsString,
+  IsNotEmpty,
+  IsInt,
+  Min,
+  IsOptional,
+  IsNumber, // Thêm IsNumber
+} from 'class-validator';
+
+export class CreateProductDto {
+  // id: Tự động tạo bởi Prisma
+  // date: Tự động gán bởi service khi tạo
+  // supplierId: Lấy từ route parameter
+
+  @ApiProperty({ description: 'Tên sản phẩm', example: 'Táo Xanh' })
+  @IsString({ message: 'Tên sản phẩm phải là chuỗi ký tự' })
+  @IsNotEmpty({ message: 'Tên sản phẩm không được để trống' })
+  name!: string;
+
+  @ApiProperty({ description: 'Giá sản phẩm', example: 12000 })
+  @IsInt({ message: 'Giá sản phẩm phải là số nguyên' })
+  @Min(0, { message: 'Giá sản phẩm phải lớn hơn hoặc bằng 0' })
+  price!: number;
+
+  @ApiPropertyOptional({
+    description: 'Ghi chú về sản phẩm',
+    example: 'Táo nhập khẩu',
+  })
+  @IsOptional()
+  @IsString({ message: 'Ghi chú sản phẩm phải là chuỗi ký tự' })
+  note?: string;
+
+  @ApiPropertyOptional({
+    description: 'Trọng lượng sản phẩm (kg)',
+    example: 0.2,
+    default: 0,
+  })
+  @IsOptional()
+  @IsNumber({}, { message: 'Trọng lượng phải là số' })
+  @Min(0, { message: 'Trọng lượng phải lớn hơn hoặc bằng 0' })
+  weight?: number = 0;
+
+  @ApiPropertyOptional({
+    description: 'Thể tích sản phẩm (m³)',
+    example: 0.0001,
+    default: 0,
+  })
+  @IsOptional()
+  @IsNumber({}, { message: 'Thể tích phải là số' })
+  @Min(0, { message: 'Thể tích phải lớn hơn hoặc bằng 0' })
+  volume?: number = 0;
+}
+```
+supplier api dto:
+```
+import { ApiProperty } from '@nestjs/swagger';
+import { IsString, IsNotEmpty, IsOptional, IsUUID } from 'class-validator';
+
+export class CreateSupplierDto {
+  @ApiProperty({
+    description: 'ID của nhà cung cấp (UUID - tùy chọn, sẽ tự động tạo nếu bỏ trống)',
+    example: 'a1b2c3d4-e5f6-7890-1234-567890abcdef',
+    required: false,
+  })
+  @IsOptional()
+  @IsUUID('4', { message: 'ID nhà cung cấp phải là UUID hợp lệ' })
+  id?: string;
+
+  @ApiProperty({ description: 'Tên nhà cung cấp', example: 'Nhà Cung Cấp A' })
+  @IsString({ message: 'Tên nhà cung cấp phải là chuỗi ký tự' })
+  @IsNotEmpty({ message: 'Tên nhà cung cấp không được để trống' })
+  name!: string;
+
+  // Add other fields relevant to Supplier if needed from your schema
+  // e.g., address, contact info, etc.
+}
+```
+```
+import { ApiProperty } from '@nestjs/swagger';
+
+// DTO định nghĩa cấu trúc response cho API dashboard
+export class TopDropshipperDto {
+  @ApiProperty({
+    description: 'ID của dropshipper',
+    example: '3bc04716-1a42-4d12-983f-5b0941d8d831',
+  })
+  id!: string; // Thêm dấu ! để xác nhận với TypeScript rằng giá trị này sẽ được gán
+
+  @ApiProperty({
+    description: 'Tên của dropshipper',
+    example: 'Nguyễn Văn A',
+    nullable: true,
+  })
+  name!: string | null;
+
+  @ApiProperty({ description: 'Số lượng sản phẩm đã bán', example: 50 })
+  quantity!: number;
+}
+
+export class SupplierSummaryInfoDto {
+  @ApiProperty({
+    description: 'ID của nhà cung cấp',
+    example: '3bc04716-1a42-4d12-983f-5b0941d8d831',
+  })
+  supplierId!: string;
+
+  @ApiProperty({
+    description: 'Tên của nhà cung cấp',
+    example: 'Công ty TNHH ABC',
+  })
+  supplierName!: string;
+
+  @ApiProperty({ description: 'Số lượng kho', example: 3 })
+  warehouseCount!: number;
+
+  @ApiProperty({ description: 'Số lượng dropshipper đã đăng ký', example: 15 })
+  dropshipperCount!: number;
+
+  @ApiProperty({
+    description: 'Số lượng đơn hàng hoàn thành trong tháng',
+    example: 120,
+  })
+  completedOrderCount!: number;
+
+  @ApiProperty({
+    description: 'Số lượng sản phẩm đã bán trong tháng',
+    example: 450,
+  })
+  soldProductQuantity!: number;
+
+  @ApiProperty({
+    description: 'Dropshipper nổi bật (bán được nhiều nhất)',
+    type: TopDropshipperDto,
+    nullable: true,
+  })
+  topDropshipper!: TopDropshipperDto | null;
+
+  @ApiProperty({ description: 'Tháng của thống kê', example: 4 })
+  month!: number;
+
+  @ApiProperty({ description: 'Năm của thống kê', example: 2025 })
+  year!: number;
+}
+```
+```
+import { PartialType } from '@nestjs/swagger'; // Use PartialType from swagger for optional fields in docs
+import { CreateSupplierDto } from './create-supplier.dto';
+import { IsString, IsOptional, IsNotEmpty } from 'class-validator';
+import { ApiPropertyOptional } from '@nestjs/swagger';
+
+// PartialType makes all properties of CreateSupplierDto optional
+export class UpdateSupplierDto extends PartialType(CreateSupplierDto) {
+  // You can override properties here if needed, e.g., add specific validation for update
+  @ApiPropertyOptional({
+    description: 'Tên nhà cung cấp',
+    example: 'Nhà Cung Cấp A Updated',
+  })
+  @IsOptional()
+  @IsString({ message: 'Tên nhà cung cấp phải là chuỗi ký tự' })
+  @IsNotEmpty({
+    message: 'Tên nhà cung cấp không được để trống nếu được cung cấp',
+  })
+  name?: string;
+
+  // ID is usually not updatable and comes from the URL param, so it's often omitted here.
+  // If you allow ID updates (generally not recommended), you'd add it back.
+}
+```
+route:
+```
+export const routes = [
+  { path: "/", redirect: "/default" },
+  {
+    path: "/default",
+    component: () => import("@/pages/default.vue"),
+    
+  },
+  {
+    path: "/admin",
+
+    component: () => import("@/pages/admin/default.vue"),
+    children: [
+      {
+        path: "algorithm",
+        component: () => import("@/pages/admin/func/algorithm.vue"),
+      },
+      {
+        path: "",
+      },
+      {
+        path: "statistic",
+        component: () => import("@/pages/admin/func/statistic.vue"),
+      },
+    ],
+  },
+  {
+    path: "/carrier",
+
+    component: () => import("@/pages/carrier/default.vue"),
+    children: [
+      {
+        path: "supplier-info/:id",
+        component: () => import("@/pages/carrier/func/supplier-info.vue"),
+        props:true,
+      },
+      {
+        path: "product-info/:id",
+        component: () => import("@/pages/carrier/func/product-info.vue"),
+        props:true,
+      },
+      {
+        path: "warehouse-info/:id",
+        component: () => import("@/pages/carrier/func/warehouse-info.vue"),
+        props:true,
+      },
+      {
+        path: "order-info/:id",
+        component: () => import("@/pages/carrier/func/order-info.vue"),
+        props:true,
+      },
+      {
+        path: "supplier-list",
+        component: () => import("@/pages/carrier/func/supplier-list.vue"),
+      },
+
+      {
+        path: "warehouse",
+        component: () => import("@/pages/carrier/func/warehouse.vue"),
+      },
+      {
+        path: "truck",
+        component: () => import("@/pages/carrier/func/truck.vue"),
+      },
+      {
+        path: "order",
+        component: () => import("@/pages/carrier/func/order.vue"),
+      },
+      {
+        path: "plan",
+        component: () => import("@/pages/carrier/func/plan.vue"),
+      },
+      {
+        path: "statistic-order",
+        component: () => import("@/pages/carrier/func/statistic-order.vue"),
+      },
+      {
+        path: "statistic-truck",
+        component: () => import("@/pages/carrier/func/statistic-truck.vue"),
+      },
+    ],
+  },
+  {
+    path: "/customer",
+
+    component: () => import("@/pages/customer/default.vue"),
+    children: [
+      {
+        path: "shopping",
+        component: () => import("@/pages/customer/func/shopping.vue"),
+      },
+      {
+        path: "cart",
+        component: () => import("@/pages/customer/func/cart.vue"),
+      },
+      {
+        path: "status",
+        component: () => import("@/pages/customer/func/status.vue"),
+      },
+    ],
+  },
+
+  {
+    path: "/dropshipper",
+
+    component: () => import("@/pages/dropshipper/default.vue"),
+    children: [
+      {
+        path: "supplier-info/:id",
+        component: () => import("@/pages/dropshipper/func/supplier-info.vue"),
+        props:true,
+      },
+      {
+        path: "order-info/:id",
+        component: () => import("@/pages/dropshipper/func/order-info.vue"),
+        props:true,
+      },
+      {
+        path: "product-info/:id",
+        component: () => import("@/pages/dropshipper/func/product-info.vue"),
+        props:true,
+      },
+      {
+        path: "warehouse-info/:id",
+        component: () => import("@/pages/dropshipper/func/warehouse-info.vue"),
+        props:true,
+      },
+      {
+        path: "general",
+        component: () => import("@/pages/dropshipper/func/general.vue"),
+      },
+      {
+        path: "product",
+        component: () => import("@/pages/dropshipper/func/product.vue"),
+      },
+      {
+        path: "supplier",
+        component: () => import("@/pages/dropshipper/func/supplier.vue"),
+      },
+      {
+        path: "warehouse",
+        component: () => import("@/pages/dropshipper/func/warehouse.vue"),
+      },
+      {
+        path: "registration",
+        component: () => import("@/pages/dropshipper/func/registration.vue"),
+      },
+      {
+        path: "order",
+        component: () => import("@/pages/dropshipper/func/order.vue"),
+      },
+      {
+        path: "statistic",
+        component: () => import("@/pages/dropshipper/func/statistic.vue"),
+      },
+
+    ],
+  },
+  {
+    path: "/supplier",
+
+    component: () => import("@/pages/supplier/default.vue"),
+    children: [
+      {
+        path: "supplier-info/:id",
+        // component: () => import("@/pages/supplier/func/supplier-info.vue"),
+        props:true,
+      },
+      {
+        path: "product-info/:id",
+        component: () => import("@/pages/supplier/func/product-info.vue"),
+        props:true,
+      },
+      {
+        path: "warehouse-info/:id",
+        component: () => import("@/pages/supplier/func/warehouse-info.vue"),
+        props:true,
+      },
+      {
+        path: "dropshipper-info/:id",
+        component: () => import("@/pages/supplier/func/dropshipper-info.vue"),
+        props:true,
+      },
+      {
+        path: "general",
+        component: () => import("@/pages/supplier/func/general.vue"),
+      },
+      {
+        path: "product",
+        component: () => import("@/pages/supplier/func/product.vue"),
+      },
+      {
+        path: "statistic",
+        component: () => import("@/pages/supplier/func/statistic.vue"),
+      },
+      {
+        path: "warehouse",
+        component: () => import("@/pages/supplier/func/warehouse.vue"),
+      },
+      {
+        path: "dropshipper-list",
+        component: () => import("@/pages/supplier/func/dropshipper-list.vue"),
+      },
+      {
+        path: "dropshipper-pending",
+        component: () => import("@/pages/supplier/func/dropshipper-pending.vue"),
+      },
+    ],
+  },
+  {
+    path: "/",
+    component: () => import("@/layouts/blank.vue"),
+    children: [
+      {
+        path: "login",
+        component: () => import("@/pages/login.vue"),
+      },
+      {
+        path: "register",
+        component: () => import("@/pages/register.vue"),
+      },
+      {
+        path: "/:pathMatch(.*)*",
+        component: () => import("@/pages/[...error].vue"),
+      },
+    ],
+  },
+];
+```
+order api dto:
+```
+// filepath: d:\datn\code\final\src\order\dto\create-order.dto.ts
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import {
+  IsUUID,
+  IsOptional,
+  IsInt,
+  IsNumber,
+  Min,
+  IsString,
+  IsDateString,
+} from 'class-validator';
+
+export class CreateOrderDto {
+  @ApiProperty({
+    description: 'ID của sản phẩm',
+    example: '550e8400-e29b-41d4-a716-446655440000',
+  })
+  @IsUUID('4', { message: 'ID sản phẩm phải là UUID hợp lệ' })
+  productId!: string;
+
+  @ApiPropertyOptional({
+    description: 'ID của dropshipper (nếu đơn hàng từ dropshipper)',
+    example: '550e8400-e29b-41d4-a716-446655440000',
+    required: false,
+  })
+  @IsOptional()
+  @IsUUID('4', { message: 'ID dropshipper phải là UUID hợp lệ' })
+  dropshipperId?: string;
+
+  @ApiProperty({
+    description: 'Thời gian tạo đơn hàng',
+    example: '2025-06-01T12:00:00Z',
+  })
+  @IsDateString({}, { message: 'Thời gian tạo không hợp lệ' })
+  timeCreated!: string;
+
+  @ApiProperty({
+    description: 'Trạng thái đơn hàng (0: chờ xử lý, 1: đang xử lý, 2: đang vận chuyển, 3: hoàn thành)',
+    example: 0,
+  })
+  @IsInt({ message: 'Trạng thái phải là số nguyên' })
+  @Min(0, { message: 'Trạng thái không được âm' })
+  status!: number;
+
+  @ApiProperty({
+    description: 'Số lượng sản phẩm',
+    example: 5,
+  })
+  @IsInt({ message: 'Số lượng phải là số nguyên' })
+  @Min(1, { message: 'Số lượng phải lớn hơn 0' })
+  quantity!: number;
+
+  @ApiProperty({
+    description: 'Thể tích (đơn vị: m³)',
+    example: 0.5,
+  })
+  @IsNumber({}, { message: 'Thể tích phải là số' })
+  @Min(0, { message: 'Thể tích không được âm' })
+  volume!: number;
+
+  @ApiProperty({
+    description: 'Trọng lượng (đơn vị: kg)',
+    example: 2.5,
+  })
+  @IsNumber({}, { message: 'Trọng lượng phải là số' })
+  @Min(0, { message: 'Trọng lượng không được âm' })
+  weight!: number;
+
+  @ApiProperty({
+    description: 'Tọa độ X của địa điểm giao hàng',
+    example: 10.762622,
+  })
+  @IsNumber({}, { message: 'Tọa độ X phải là số' })
+  locationX!: number;
+
+  @ApiProperty({
+    description: 'Tọa độ Y của địa điểm giao hàng',
+    example: 106.660172,
+  })
+  @IsNumber({}, { message: 'Tọa độ Y phải là số' })
+  locationY!: number;
+
+  @ApiPropertyOptional({
+    description: 'Ghi chú đơn hàng',
+    example: 'Giao hàng vào buổi sáng',
+    required: false,
+  })
+  @IsOptional()
+  @IsString({ message: 'Ghi chú phải là chuỗi' })
+  note?: string;
+}
+```
+```
+import { ApiPropertyOptional } from '@nestjs/swagger';
+import { IsOptional, IsInt, Min, Max, IsUUID } from 'class-validator';
+
+export class FilterOrderDto {
+  @ApiPropertyOptional({
+    description: 'Lọc theo trạng thái đơn hàng (0: chờ xử lý, 1: đang xử lý, 2: đang vận chuyển, 3: hoàn thành)',
+    example: 2,
+  })
+  @IsOptional()
+  @IsInt({ message: 'Trạng thái phải là số nguyên' })
+  @Min(0, { message: 'Trạng thái không được nhỏ hơn 0' })
+  @Max(3, { message: 'Trạng thái không được lớn hơn 3' })
+  status?: number;
+
+  @ApiPropertyOptional({
+    description: 'Lọc theo ID nhà cung cấp',
+    example: '550e8400-e29b-41d4-a716-446655440000',
+  })
+  @IsOptional()
+  @IsUUID('4', { message: 'ID nhà cung cấp phải là UUID hợp lệ' })
+  supplierId?: string;
+
+  @ApiPropertyOptional({
+    description: 'Lọc theo ID dropshipper',
+    example: '550e8400-e29b-41d4-a716-446655440000',
+  })
+  @IsOptional()
+  @IsUUID('4', { message: 'ID dropshipper phải là UUID hợp lệ' })
+  dropshipperId?: string;
+
+  @ApiPropertyOptional({
+    description: 'Lọc theo ID sản phẩm',
+    example: '550e8400-e29b-41d4-a716-446655440000',
+  })
+  @IsOptional()
+  @IsUUID('4', { message: 'ID sản phẩm phải là UUID hợp lệ' })
+  productId?: string;
+} 
+```
+```
+// filepath: d:\datn\code\final\src\order\dto\update-order.dto.ts
+import { PartialType } from '@nestjs/swagger';
+import { CreateOrderDto } from './create-order.dto';
+import { ApiPropertyOptional } from '@nestjs/swagger';
+import { IsInt, IsOptional, IsString, IsNumber, Min } from 'class-validator';
+
+// Usually, you only update certain fields like status or note
+export class UpdateOrderDto extends PartialType(CreateOrderDto) {
+  // Not extending PartialType to be more specific
+
+  @ApiPropertyOptional({ description: 'Trạng thái đơn hàng', example: 1 })
+  @IsOptional()
+  @IsInt()
+  status?: number;
+
+  @ApiPropertyOptional({ description: 'Số lượng', example: 6 })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  quantity?: number;
+
+  @ApiPropertyOptional({ description: 'Tổng thể tích', example: 0.6 })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  volume?: number;
+
+  @ApiPropertyOptional({ description: 'Tổng trọng lượng', example: 3.0 })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  weight?: number;
+
+  @ApiPropertyOptional({ description: 'Tọa độ X giao hàng', example: 10.1 })
+  @IsOptional()
+  @IsNumber()
+  locationX?: number;
+
+  @ApiPropertyOptional({ description: 'Tọa độ Y giao hàng', example: 106.1 })
+  @IsOptional()
+  @IsNumber()
+  locationY?: number;
+
+  @ApiPropertyOptional({
+    description: 'Ghi chú',
+    example: 'Gọi trước khi giao',
+  })
+  @IsOptional()
+  @IsString()
+  note?: string;
+
+  // Fields like productId, dropshipperId, timeCreated are generally not updated here.
+}
+```
+```
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsInt, Min, Max, IsOptional, IsString } from 'class-validator';
+
+export class UpdateStatusDto {
+  @ApiProperty({
+    description: 'Trạng thái mới của đơn hàng (0: chờ xử lý, 1: đang xử lý, 2: đang vận chuyển, 3: hoàn thành)',
+    example: 2,
+  })
+  @IsInt({ message: 'Trạng thái phải là số nguyên' })
+  @Min(0, { message: 'Trạng thái không được nhỏ hơn 0' })
+  @Max(3, { message: 'Trạng thái không được lớn hơn 3' })
+  status!: number;
+
+  @ApiPropertyOptional({
+    description: 'Ghi chú khi cập nhật trạng thái',
+    example: 'Đang trên đường giao hàng',
+    required: false,
+  })
+  @IsOptional()
+  @IsString({ message: 'Ghi chú phải là chuỗi' })
+  note?: string;
+} 
+```
+order controller api
+```
+// filepath: d:\datn\code\final\src\order\order.controller.ts
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  ParseUUIDPipe,
+  NotFoundException,
+  HttpCode,
+  HttpStatus,
+  Query,
+  ParseIntPipe,
+  BadRequestException,
+} from '@nestjs/common';
+import { OrderService } from './order.service';
+import { CreateOrderDto } from './dto/create-order.dto';
+import { UpdateOrderDto } from './dto/update-order.dto';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiParam,
+  ApiBody,
+  ApiResponse,
+  ApiQuery,
+} from '@nestjs/swagger';
+import { UpdateStatusDto } from './dto/update-status.dto';
+import { FilterOrderDto } from './dto/filter-order.dto';
+import { isEqual, pickBy } from 'lodash';
+import { Prisma } from '@prisma/client';
+
+@ApiTags('order')
+@Controller('order')
+export class OrderController {
+  constructor(private readonly orderService: OrderService) {}
+
+  @Post()
+  @ApiOperation({ summary: 'Tạo đơn hàng mới' })
+  @ApiBody({ type: CreateOrderDto })
+  @ApiResponse({ status: 201, description: 'Đơn hàng đã được tạo.' })
+  @ApiResponse({ status: 400, description: 'Dữ liệu không hợp lệ.' })
+  @ApiResponse({
+    status: 404,
+    description: 'Không tìm thấy Product hoặc Dropshipper (nếu có).',
+  })
+  async create(@Body() createOrderDto: CreateOrderDto) {
+    // Kiểm tra sản phẩm tồn tại
+    const productExists = await this.orderService.productExists(createOrderDto.productId);
+    if (!productExists) {
+      throw new BadRequestException(`Sản phẩm với ID ${createOrderDto.productId} không tồn tại`);
+    }
+
+    // Kiểm tra dropshipper tồn tại (nếu có)
+    if (createOrderDto.dropshipperId) {
+      const dropshipperExists = await this.orderService.dropshipperExists(createOrderDto.dropshipperId);
+      if (!dropshipperExists) {
+        throw new BadRequestException(`Dropshipper với ID ${createOrderDto.dropshipperId} không tồn tại`);
+      }
+    }
+
+    return await this.orderService.create(createOrderDto);
+  }
+
+  @Get()
+  @ApiOperation({ summary: 'Lấy danh sách tất cả đơn hàng (có thể lọc)' })
+  @ApiQuery({
+    name: 'productId',
+    required: false,
+    type: String,
+    description: 'Lọc theo ID sản phẩm',
+  })
+  @ApiQuery({
+    name: 'dropshipperId',
+    required: false,
+    type: String,
+    description: 'Lọc theo ID dropshipper',
+  })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    type: Number,
+    description: 'Lọc theo trạng thái',
+  })
+  @ApiResponse({ status: 200, description: 'Danh sách đơn hàng.' })
+  async findAll(@Query() filterDto: FilterOrderDto) {
+    try {
+      // Nếu có supplierId, kiểm tra tồn tại
+      if (filterDto.supplierId) {
+        const supplierExists = await this.orderService.supplierExists(filterDto.supplierId);
+        if (!supplierExists) {
+          throw new BadRequestException(`Supplier với ID ${filterDto.supplierId} không tồn tại`);
+        }
+        
+        // Nếu có cả status và supplierId
+        if (filterDto.status !== undefined) {
+          return await this.orderService.findBySupplierAndStatus(filterDto.supplierId, filterDto.status);
+        }
+        
+        return await this.orderService.findBySupplier(filterDto.supplierId);
+      }
+      
+      // Nếu có dropshipperId, kiểm tra tồn tại
+      if (filterDto.dropshipperId) {
+        const dropshipperExists = await this.orderService.dropshipperExists(filterDto.dropshipperId);
+        if (!dropshipperExists) {
+          throw new BadRequestException(`Dropshipper với ID ${filterDto.dropshipperId} không tồn tại`);
+        }
+        
+        // Nếu có cả status và dropshipperId
+        if (filterDto.status !== undefined) {
+          return await this.orderService.findByDropshipperAndStatus(filterDto.dropshipperId, filterDto.status);
+        }
+        
+        return await this.orderService.findByDropshipper(filterDto.dropshipperId);
+      }
+      
+      // Nếu có productId, kiểm tra tồn tại
+      if (filterDto.productId) {
+        const productExists = await this.orderService.productExists(filterDto.productId);
+        if (!productExists) {
+          throw new BadRequestException(`Sản phẩm với ID ${filterDto.productId} không tồn tại`);
+        }
+        
+        return await this.orderService.findByProduct(filterDto.productId);
+      }
+      
+      // Nếu chỉ có status
+      if (filterDto.status !== undefined) {
+        return await this.orderService.findByStatus(filterDto.status);
+      }
+      
+      // Mặc định: lấy tất cả
+      return await this.orderService.findAll();
+    } catch (error) {
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new BadRequestException('Lỗi khi lấy danh sách đơn hàng');
+    }
+  }
+
+  @Get(':id')
+  @ApiOperation({ summary: 'Lấy thông tin chi tiết đơn hàng' })
+  @ApiParam({ name: 'id', description: 'ID của đơn hàng (UUID)', type: String })
+  @ApiResponse({ status: 200, description: 'Thông tin đơn hàng.' })
+  @ApiResponse({ status: 404, description: 'Không tìm thấy đơn hàng.' })
+  async findOne(@Param('id', ParseUUIDPipe) id: string) {
+    const order = await this.orderService.findOne(id);
+    if (!order) {
+      throw new NotFoundException(`Order with ID ${id} not found`);
+    }
+    return order;
+  }
+
+  @Patch(':id')
+  @ApiOperation({
+    summary: 'Cập nhật thông tin đơn hàng (ví dụ: status, note)',
+  })
+  @ApiParam({ name: 'id', description: 'ID của đơn hàng (UUID)', type: String })
+  @ApiBody({ type: UpdateOrderDto })
+  @ApiResponse({ status: 200, description: 'Đơn hàng đã được cập nhật.' })
+  @ApiResponse({ status: 404, description: 'Không tìm thấy đơn hàng.' })
+  @ApiResponse({ status: 400, description: 'Dữ liệu không hợp lệ.' })
+  async update(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() updateOrderDto: UpdateOrderDto,
+  ) {
+    // Kiểm tra đơn hàng tồn tại
+    const existingOrder = await this.orderService.findOne(id);
+    if (existingOrder === null) {
+      throw new NotFoundException(`Đơn hàng với ID ${id} không tồn tại`);
+    }
+
+    // Kiểm tra sản phẩm tồn tại nếu có cập nhật productId
+    if (updateOrderDto.productId && updateOrderDto.productId !== existingOrder.productId) {
+      const productExists = await this.orderService.productExists(updateOrderDto.productId);
+      if (!productExists) {
+        throw new BadRequestException(`Sản phẩm với ID ${updateOrderDto.productId} không tồn tại`);
+      }
+    }
+
+    // Kiểm tra dropshipper tồn tại nếu có cập nhật dropshipperId
+    if (updateOrderDto.dropshipperId && updateOrderDto.dropshipperId !== existingOrder.dropshipperId) {
+      const dropshipperExists = await this.orderService.dropshipperExists(updateOrderDto.dropshipperId);
+      if (!dropshipperExists) {
+        throw new BadRequestException(`Dropshipper với ID ${updateOrderDto.dropshipperId} không tồn tại`);
+      }
+    }
+
+    // Kiểm tra các trường thay đổi
+    const updatedFields = pickBy(updateOrderDto, (value, key) => {
+      if (key === 'timeCreated' && value) {
+        return !isEqual(new Date(value).toISOString(), existingOrder[key]?.toISOString());
+      }
+      return !isEqual(value, existingOrder[key]);
+    });
+
+    if (Object.keys(updatedFields).length === 0) {
+      return {
+        statusCode: HttpStatus.OK,
+        message: 'Không có trường nào cần cập nhật.',
+        data: existingOrder,
+      };
+    }
+
+    try {
+      return await this.orderService.update(id, updatedFields);
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        throw new BadRequestException(`Lỗi khi cập nhật đơn hàng: ${error.message}`);
+      }
+      throw error;
+    }
+  }
+
+  @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Xóa đơn hàng' })
+  @ApiParam({ name: 'id', description: 'ID của đơn hàng (UUID)', type: String })
+  @ApiResponse({ status: 204, description: 'Đơn hàng đã được xóa.' })
+  @ApiResponse({ status: 404, description: 'Không tìm thấy đơn hàng.' })
+  @ApiResponse({ status: 400, description: 'Không thể xóa do ràng buộc.' })
+  async remove(@Param('id', ParseUUIDPipe) id: string) {
+    // Kiểm tra đơn hàng tồn tại
+    const orderExists = await this.orderService.findOne(id);
+    if (!orderExists) {
+      throw new NotFoundException(`Đơn hàng với ID ${id} không tồn tại`);
+    }
+
+    try {
+      await this.orderService.remove(id);
+      // 204 No Content - không trả về dữ liệu
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        // Xử lý lỗi ràng buộc khóa ngoại
+        if (error.code === 'P2003' || error.code === 'P2014') {
+          throw new BadRequestException(
+            `Không thể xóa đơn hàng với ID ${id} do có tham chiếu tồn tại.`,
+          );
+        }
+      }
+      throw error;
+    }
+  }
+
+  // --- Relationship Endpoints ---
+
+  @Get(':id/plans')
+  @ApiOperation({ summary: 'Lấy danh sách kế hoạch vận chuyển cho đơn hàng' })
+  @ApiParam({ name: 'id', description: 'ID của đơn hàng (UUID)', type: String })
+  @ApiResponse({ status: 200, description: 'Danh sách kế hoạch.' })
+  @ApiResponse({ status: 404, description: 'Không tìm thấy đơn hàng.' })
+  async findPlans(@Param('id', ParseUUIDPipe) id: string) {
+    return this.orderService.findPlans(id);
+  }
+
+  @Get('by-status/:status')
+  @ApiOperation({ summary: 'Lấy danh sách đơn hàng theo trạng thái' })
+  @ApiParam({
+    name: 'status',
+    description: 'Trạng thái đơn hàng (0: chờ xử lý, 1: đang xử lý, 2: đang vận chuyển, 3: hoàn thành)',
+    type: Number,
+  })
+  @ApiResponse({ status: 200, description: 'Danh sách đơn hàng.' })
+  async findByStatus(@Param('status') status: string) {
+    const statusNumber = parseInt(status, 10);
+    if (isNaN(statusNumber) || statusNumber < 0 || statusNumber > 3) {
+      throw new BadRequestException('Trạng thái đơn hàng không hợp lệ');
+    }
+    
+    return await this.orderService.findByStatus(statusNumber);
+  }
+
+  @Get('by-supplier/:supplierId')
+  @ApiOperation({ summary: 'Lấy danh sách đơn hàng theo nhà cung cấp' })
+  @ApiParam({
+    name: 'supplierId',
+    description: 'ID của nhà cung cấp (UUID)',
+    type: String,
+  })
+  @ApiResponse({ status: 200, description: 'Danh sách đơn hàng.' })
+  @ApiResponse({ status: 404, description: 'Không tìm thấy nhà cung cấp.' })
+  async findBySupplier(@Param('supplierId', ParseUUIDPipe) supplierId: string) {
+    const supplierExists = await this.orderService.supplierExists(supplierId);
+    if (!supplierExists) {
+      throw new NotFoundException(`Nhà cung cấp với ID ${supplierId} không tồn tại`);
+    }
+    
+    return await this.orderService.findBySupplier(supplierId);
+  }
+  
+  @Get('by-supplier/:supplierId/status/:status')
+  @ApiOperation({ summary: 'Lấy danh sách đơn hàng theo nhà cung cấp và trạng thái' })
+  @ApiParam({
+    name: 'supplierId',
+    description: 'ID của nhà cung cấp (UUID)',
+    type: String,
+  })
+  @ApiParam({
+    name: 'status',
+    description: 'Trạng thái đơn hàng (0: chờ xử lý, 1: đang xử lý, 2: đang vận chuyển, 3: hoàn thành)',
+    type: Number,
+  })
+  @ApiResponse({ status: 200, description: 'Danh sách đơn hàng.' })
+  @ApiResponse({ status: 404, description: 'Không tìm thấy nhà cung cấp.' })
+  async findBySupplierAndStatus(
+    @Param('supplierId', ParseUUIDPipe) supplierId: string,
+    @Param('status') status: string,
+  ) {
+    const supplierExists = await this.orderService.supplierExists(supplierId);
+    if (!supplierExists) {
+      throw new NotFoundException(`Nhà cung cấp với ID ${supplierId} không tồn tại`);
+    }
+    
+    const statusNumber = parseInt(status, 10);
+    if (isNaN(statusNumber) || statusNumber < 0 || statusNumber > 3) {
+      throw new BadRequestException('Trạng thái đơn hàng không hợp lệ');
+    }
+    
+    return await this.orderService.findBySupplierAndStatus(supplierId, statusNumber);
+  }
+
+  @Get('by-dropshipper/:dropshipperId')
+  @ApiOperation({ summary: 'Lấy danh sách đơn hàng theo dropshipper' })
+  @ApiParam({
+    name: 'dropshipperId',
+    description: 'ID của dropshipper (UUID)',
+    type: String,
+  })
+  @ApiResponse({ status: 200, description: 'Danh sách đơn hàng.' })
+  @ApiResponse({ status: 404, description: 'Không tìm thấy dropshipper.' })
+  async findByDropshipper(@Param('dropshipperId', ParseUUIDPipe) dropshipperId: string) {
+    const dropshipperExists = await this.orderService.dropshipperExists(dropshipperId);
+    if (!dropshipperExists) {
+      throw new NotFoundException(`Dropshipper với ID ${dropshipperId} không tồn tại`);
+    }
+    
+    return await this.orderService.findByDropshipper(dropshipperId);
+  }
+  
+  @Get('by-dropshipper/:dropshipperId/status/:status')
+  @ApiOperation({ summary: 'Lấy danh sách đơn hàng theo dropshipper và trạng thái' })
+  @ApiParam({
+    name: 'dropshipperId',
+    description: 'ID của dropshipper (UUID)',
+    type: String,
+  })
+  @ApiParam({
+    name: 'status',
+    description: 'Trạng thái đơn hàng (0: chờ xử lý, 1: đang xử lý, 2: đang vận chuyển, 3: hoàn thành)',
+    type: Number,
+  })
+  @ApiResponse({ status: 200, description: 'Danh sách đơn hàng.' })
+  @ApiResponse({ status: 404, description: 'Không tìm thấy dropshipper.' })
+  async findByDropshipperAndStatus(
+    @Param('dropshipperId', ParseUUIDPipe) dropshipperId: string,
+    @Param('status') status: string,
+  ) {
+    const dropshipperExists = await this.orderService.dropshipperExists(dropshipperId);
+    if (!dropshipperExists) {
+      throw new NotFoundException(`Dropshipper với ID ${dropshipperId} không tồn tại`);
+    }
+    
+    const statusNumber = parseInt(status, 10);
+    if (isNaN(statusNumber) || statusNumber < 0 || statusNumber > 3) {
+      throw new BadRequestException('Trạng thái đơn hàng không hợp lệ');
+    }
+    
+    return await this.orderService.findByDropshipperAndStatus(dropshipperId, statusNumber);
+  }
+
+  @Get('by-product/:productId')
+  @ApiOperation({ summary: 'Lấy danh sách đơn hàng theo sản phẩm' })
+  @ApiParam({
+    name: 'productId',
+    description: 'ID của sản phẩm (UUID)',
+    type: String,
+  })
+  @ApiResponse({ status: 200, description: 'Danh sách đơn hàng.' })
+  @ApiResponse({ status: 404, description: 'Không tìm thấy sản phẩm.' })
+  async findByProduct(@Param('productId', ParseUUIDPipe) productId: string) {
+    const productExists = await this.orderService.productExists(productId);
+    if (!productExists) {
+      throw new NotFoundException(`Sản phẩm với ID ${productId} không tồn tại`);
+    }
+    
+    return await this.orderService.findByProduct(productId);
+  }
+
+  @Patch(':id/status')
+  @ApiOperation({ summary: 'Cập nhật trạng thái đơn hàng' })
+  @ApiParam({
+    name: 'id',
+    description: 'ID của đơn hàng (UUID)',
+    type: String,
+  })
+  @ApiBody({ type: UpdateStatusDto })
+  @ApiResponse({ status: 200, description: 'Trạng thái đơn hàng đã được cập nhật.' })
+  @ApiResponse({ status: 404, description: 'Không tìm thấy đơn hàng.' })
+  @ApiResponse({ status: 400, description: 'Dữ liệu không hợp lệ.' })
+  async updateStatus(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() updateStatusDto: UpdateStatusDto,
+  ) {
+    // Kiểm tra đơn hàng tồn tại
+    const existingOrder = await this.orderService.findOne(id);
+    if (existingOrder === null) {
+      throw new NotFoundException(`Đơn hàng với ID ${id} không tồn tại`);
+    }
+
+    // Nếu trạng thái không thay đổi và không có note mới
+    if (
+      existingOrder.status === updateStatusDto.status &&
+      (!updateStatusDto.note || updateStatusDto.note === existingOrder.note)
+    ) {
+      return {
+        statusCode: HttpStatus.OK,
+        message: 'Không có trường nào cần cập nhật.',
+        data: existingOrder,
+      };
+    }
+
+    try {
+      return await this.orderService.updateStatus(id, updateStatusDto);
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        throw new BadRequestException(`Lỗi khi cập nhật trạng thái đơn hàng: ${error.message}`);
+      }
+      throw error;
+    }
+  }
+}
+```
+order service api
+```
+// filepath: d:\datn\code\final\src\order\order.service.ts
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { PrismaService } from '../../prisma/prisma.service';
+import { CreateOrderDto } from './dto/create-order.dto';
+import { UpdateOrderDto } from './dto/update-order.dto';
+import { UpdateStatusDto } from './dto/update-status.dto';
+import { Order, Plan, Prisma } from '@prisma/client';
+
+@Injectable()
+export class OrderService {
+  constructor(private readonly prisma: PrismaService) {}
+
+  async create(createOrderDto: CreateOrderDto): Promise<Order> {
+    return await this.prisma.order.create({
+      data: {
+        ...createOrderDto,
+        timeCreated: new Date(createOrderDto.timeCreated),
+      },
+    });
+  }
+
+  async findAll(): Promise<Order[]> {
+    return await this.prisma.order.findMany({
+      include: {
+        product: true,
+        dropshipper: true,
+      },
+    });
+  }
+
+  async findOne(id: string): Promise<Order | null> {
+    return await this.prisma.order.findUnique({
+      where: { id },
+      include: {
+        product: true,
+        dropshipper: true,
+        plans: true,
+      },
+    });
+  }
+
+  async update(id: string, updateOrderDto: Partial<UpdateOrderDto>): Promise<Order> {
+    const data: any = { ...updateOrderDto };
+    if (updateOrderDto.timeCreated) {
+      data.timeCreated = new Date(updateOrderDto.timeCreated);
+    }
+    
+    return await this.prisma.order.update({
+      where: { id },
+      data,
+    });
+  }
+
+  async updateStatus(id: string, updateStatusDto: UpdateStatusDto): Promise<Order> {
+    return await this.prisma.order.update({
+      where: { id },
+      data: {
+        status: updateStatusDto.status,
+        ...(updateStatusDto.note && { note: updateStatusDto.note }),
+      },
+    });
+  }
+
+  async remove(id: string): Promise<Order> {
+    return await this.prisma.order.delete({
+      where: { id },
+    });
+  }
+
+  async findByStatus(status: number): Promise<Order[]> {
+    return await this.prisma.order.findMany({
+      where: { status },
+      include: {
+        product: true,
+        dropshipper: true,
+      },
+    });
+  }
+
+  async findBySupplier(supplierId: string): Promise<Order[]> {
+    return await this.prisma.order.findMany({
+      where: {
+        product: {
+          supplierId,
+        },
+      },
+      include: {
+        product: true,
+        dropshipper: true,
+      },
+    });
+  }
+
+  async findBySupplierAndStatus(supplierId: string, status: number): Promise<Order[]> {
+    return await this.prisma.order.findMany({
+      where: {
+        product: {
+          supplierId,
+        },
+        status,
+      },
+      include: {
+        product: true,
+        dropshipper: true,
+      },
+    });
+  }
+
+  async findByDropshipper(dropshipperId: string): Promise<Order[]> {
+    return await this.prisma.order.findMany({
+      where: { dropshipperId },
+      include: {
+        product: true,
+        dropshipper: true,
+      },
+    });
+  }
+
+  async findByDropshipperAndStatus(dropshipperId: string, status: number): Promise<Order[]> {
+    return await this.prisma.order.findMany({
+      where: { 
+        dropshipperId, 
+        status 
+      },
+      include: {
+        product: true,
+        dropshipper: true,
+      },
+    });
+  }
+
+  async findByProduct(productId: string): Promise<Order[]> {
+    return await this.prisma.order.findMany({
+      where: { productId },
+      include: {
+        product: true,
+        dropshipper: true,
+      },
+    });
+  }
+
+  async productExists(productId: string): Promise<boolean> {
+    const count = await this.prisma.product.count({
+      where: { id: productId },
+    });
+    return count > 0;
+  }
+
+  async dropshipperExists(dropshipperId: string): Promise<boolean> {
+    const count = await this.prisma.dropshipper.count({
+      where: { id: dropshipperId },
+    });
+    return count > 0;
+  }
+
+  async supplierExists(supplierId: string): Promise<boolean> {
+    const count = await this.prisma.supplier.count({
+      where: { id: supplierId },
+    });
+    return count > 0;
+  }
+
+  // --- Relationship Methods ---
+  async findPlans(id: string): Promise<Plan[]> {
+    const orderExists = await this.prisma.order.findUnique({
+      where: { id },
+      select: { id: true }, // Only select id to check existence efficiently
+    });
+    if (!orderExists) {
+      throw new NotFoundException(`Order with ID ${id} not found`);
+    }
+    // Query plans separately
+    return this.prisma.plan.findMany({ where: { orderId: id } });
+  }
+}
+```
